@@ -107,18 +107,39 @@ def read_image_list(
     return files
 
 
-def rename_image(fname: Union[str, Path], base_name: str = "IMG") -> bool:
+def rename_image(
+    fname: Union[str, Path],
+    dest_folder: Union[str, Path] = "renamed",
+    base_name: str = "IMG",
+    remove_original: bool = False,
+) -> bool:
+    """
+    Renames an image file based on its exif data and copies it to a specified destination folder.
+
+    Args:
+        fname (Union[str, Path]): A string or Path object specifying the file path of the image to rename and copy.
+        dest_folder (Union[str, Path], optional): A string or Path object specifying the destination directory path to copy the renamed image to. Defaults to "renamed".
+        base_name (str, optional): A string to use as the base name for the renamed image file. Defaults to "IMG".
+        remove_original (bool, optional): Whether to delete the original image file after copying the renamed image. Defaults to False.
+
+    Returns:
+        bool: Returns True if the image was successfully renamed and copied to the destination folder.
+
+    Raises:
+        RuntimeError: If the exif data cannot be read or if the image date-time cannot be retrieved from the exif data.
+    """
     fname = Path(fname)
+    dest_folder = Path(dest_folder)
+    dest_folder.mkdir(exist_ok=True, parents=True)
+
     img = Image(fname)
 
-    old_name = fname.name
     try:
         exif = img.exif
     except:
         raise RuntimeError("Unable to read exif data")
     date_time = img._date_time
     if date_time is None:
-        logging.warning("Unable to get camera model from exif.")
         raise RuntimeError("Unable to get image date-time from exif.")
     try:
         camera_model = exif["Image Model"].printable
@@ -135,6 +156,14 @@ def rename_image(fname: Union[str, Path], base_name: str = "IMG") -> bool:
     date_time_str = date_time.strftime("%Y%m%d_%H%M%S")
     new_name = f"{base_name}_{date_time_str}_{camera_model}{fname.suffix}"
 
+    # Do actual copy
+    dst = dest_folder / new_name
+    shutil.copyfile(src=fname, dst=dst)
+
+    # If remove_original is set to True, delete original image
+    if remove_original:
+        fname.unlink()
+
     return True
 
 
@@ -145,6 +174,9 @@ if __name__ == "__main__":
     data_dir = Path("data")
     image_list = read_image_list(data_dir, image_ext=["jpg", "png"], recursive=True)
 
-    fname = image_list[0]
+    # file = image_list[0]
+    for file in image_list:
+        if not rename_image(fname=file, dest_folder="renamed", base_name="IMG"):
+            raise RuntimeError(f"Unable to rename file {file.name}")
 
     print("Done.")
