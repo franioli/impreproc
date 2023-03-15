@@ -2,9 +2,11 @@ import argparse
 import shutil
 import sys
 import time
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple, Union
+from datetime import datetime
 
 import exifread
 import numpy as np
@@ -105,8 +107,33 @@ def read_image_list(
     return files
 
 
-def rename_image(fname: Union[str, Path]) -> bool:
+def rename_image(fname: Union[str, Path], base_name: str = "IMG") -> bool:
+    fname = Path(fname)
     img = Image(fname)
+
+    old_name = fname.name
+    try:
+        exif = img.exif
+    except:
+        raise RuntimeError("Unable to read exif data")
+    date_time = img._date_time
+    if date_time is None:
+        logging.warning("Unable to get camera model from exif.")
+        raise RuntimeError("Unable to get image date-time from exif.")
+    try:
+        camera_model = exif["Image Model"].printable
+        camera_model = camera_model.replace(" ", "_")
+    except:
+        logging.warning("Unable to get camera model from exif.")
+        camera_model = ""
+    try:
+        focal = exif["EXIF FocalLength"].printable
+    except:
+        logging.warning("Unable to get nominal focal length from exif.")
+        focal = ""
+
+    date_time_str = date_time.strftime("%Y%m%d_%H%M%S")
+    new_name = f"{base_name}_{date_time_str}_{camera_model}{fname.suffix}"
 
     return True
 
@@ -119,12 +146,5 @@ if __name__ == "__main__":
     image_list = read_image_list(data_dir, image_ext=["jpg", "png"], recursive=True)
 
     fname = image_list[0]
-    img = Image(fname)
-
-    # img = Image.open(fname)
-    # exif = img.getexif()
-
-    # with open(fname, "rb") as f:
-    #     exif = exifread.process_file(f, details=False)
 
     print("Done.")
