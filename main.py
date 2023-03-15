@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Union
 
-from PIL import Image
 from easydict import EasyDict as edict
 
 from lib.images import Image
