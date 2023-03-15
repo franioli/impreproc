@@ -1,16 +1,10 @@
 import argparse
 import shutil
-import sys
-import time
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple, Union
-from datetime import datetime
+from typing import List, Union
 
-import exifread
-import numpy as np
-import PIL
 from PIL import Image
 from easydict import EasyDict as edict
 
