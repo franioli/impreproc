@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List, Union
+import sys
 
 from easydict import EasyDict as edict
 
@@ -16,26 +17,62 @@ def parse_command_line() -> edict:
 
     """
     parser = argparse.ArgumentParser(
-        description="""icepy
-            Low-cost stereo photogrammetry for 4D glacier monitoring \
-            Check -h or --help for options.
-        Usage: ./main.py -c config_base.yaml"""
+        description="""Rename batch of images recursively. Check -h or --help for options.
+        Usage: ./main.py -d /path/to/images -e jpg,png -r -p *_image*"""
     )
     parser.add_argument(
         "-d",
-        "--directory",
+        "--data_dir",
         type=str,
-        help="Path of to root directory containing images",
+        help="Path to root directory containing images",
     )
-
-    # if not len(sys.argv) > 1:
-    #     raise ValueError(
-    #         "Not enough input arguments. Specify at least the configuration file. Use --help (or -h) for help."
-    #     )
+    parser.add_argument(
+        "-e",
+        "--image_ext",
+        type=str,
+        help="Image file extensions, separated by commas (e.g., jpg,png)",
+    )
+    parser.add_argument(
+        "-f",
+        "--dest_folder",
+        type=str,
+        default="renamed",
+        help="Destination folder for renamed images",
+    )
+    parser.add_argument(
+        "-r",
+        "--recursive",
+        action="store_true",
+        default=False,
+        help="Search for images recursively in subdirectories",
+    )
+    parser.add_argument(
+        "-p",
+        "--name_pattern",
+        type=str,
+        default=None,
+        help="File name pattern to match (e.g., *_image*)",
+    )
+    parser.add_argument(
+        "-b",
+        "--base_name",
+        type=str,
+        default="IMG",
+        help="Base name for renamed images (default: 'IMG')",
+    )
 
     args = parser.parse_args()
 
-    opt = edict({"data_dir": Path(args.directory)})
+    opt = edict(
+        {
+            "data_dir": Path(args.data_dir),
+            "image_ext": None if args.image_ext is None else args.image_ext.split(","),
+            "dest_folder": Path(args.dest_folder),
+            "recursive": args.recursive,
+            "pattern": args.pattern,
+            "base_name": args.base_name,
+        }
+    )
 
     return opt
 
@@ -161,15 +198,33 @@ def rename_image(
 
 
 if __name__ == "__main__":
-    # args = parse_command_line()
-    # data_dir = args.data_dir
+    custom_opts = edict(
+        {
+            "data_dir": Path("data"),
+            "image_ext": ["jpg", "png"],
+            "dest_folder": "renamed",
+            "base_name": "IMG",
+            "recursive": True,
+            "pattern": None,
+        }
+    )
 
-    data_dir = Path("data")
-    image_list = read_image_list(data_dir, image_ext=["jpg", "png"], recursive=True)
+    # Check if script is launched via command-line and parse input parametrs, use custom_opts specified prev otherwise
+    if len(sys.argv) > 1:
+        opt = parse_command_line()
+    else:
+        opt = custom_opts
 
-    # file = image_list[0]
+    data_dir = opt.data_dir
+    image_ext = opt.image_ext
+    dest_folder = opt.dest_folder
+    recursive = opt.recursive
+    pattern = opt.pattern
+    base_name = opt.base_name
+
+    image_list = read_image_list(data_dir, image_ext=image_ext, recursive=recursive)
     for file in image_list:
-        if not rename_image(fname=file, dest_folder="renamed", base_name="IMG"):
+        if not rename_image(fname=file, dest_folder=dest_folder, base_name=base_name):
             raise RuntimeError(f"Unable to rename file {file.name}")
 
     print("Done.")

@@ -1,0 +1,17 @@
+numpy
+opencv-python
+scipy
+pandas
+tqdm
+easydict
+pillow
+exifread
+mkdocs
+pytest
+flake8
+lmfit
+black
+isort
+mkdocs
+mkdocs-material
+mkdocstrings[python]
