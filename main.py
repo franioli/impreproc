@@ -1,12 +1,16 @@
 import argparse
-import shutil
 import logging
+import multiprocessing
+import shutil
+import sys
+import time
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import List, Union
-import sys
 
 from easydict import EasyDict as edict
+from tqdm import tqdm
 
 from lib.images import Image
 
@@ -18,11 +22,10 @@ def parse_command_line() -> edict:
     """
     parser = argparse.ArgumentParser(
         description="""Rename batch of images recursively. Check -h or --help for options.
-        Usage: ./main.py -d /path/to/images -e jpg,png -r -p *_image*"""
+        Usage: ./main.py /path/to/images -e jpg,png -r -p *_image*"""
     )
     parser.add_argument(
-        "-d",
-        "--data_dir",
+        "data_dir",
         type=str,
         help="Path to root directory containing images",
     )
@@ -33,18 +36,11 @@ def parse_command_line() -> edict:
         help="Image file extensions, separated by commas (e.g., jpg,png)",
     )
     parser.add_argument(
-        "-f",
-        "--dest_folder",
+        "-o",
+        "--output_folder",
         type=str,
         default="renamed",
-        help="Destination folder for renamed images",
-    )
-    parser.add_argument(
-        "-r",
-        "--recursive",
-        action="store_true",
-        default=False,
-        help="Search for images recursively in subdirectories",
+        help="Destination folder for renamed images (default: 'renamed')",
     )
     parser.add_argument(
         "-p",
@@ -60,6 +56,33 @@ def parse_command_line() -> edict:
         default="IMG",
         help="Base name for renamed images (default: 'IMG')",
     )
+    parser.add_argument(
+        "-r",
+        "--recursive",
+        action="store_true",
+        default=False,
+        help="Search for images recursively in subdirectories (default: False)",
+    )
+    parser.add_argument(
+        "-d",
+        "--delete_original",
+        action="store_true",
+        help="Remove original image after renaming (default: False)",
+    )
+    parser.add_argument(
+        "-cs",
+        "--case_sensitive",
+        action="store_true",
+        default=True,
+        help="Make glob search case-sensitive (default: True)",
+    )
+    parser.add_argument(
+        "-par",
+        "--parallel",
+        action="store_true",
+        default=False,
+        help="Flag to process images in parallel using multiprocessing (default: False)",
+    )
 
     args = parser.parse_args()
 
@@ -67,10 +90,13 @@ def parse_command_line() -> edict:
         {
             "data_dir": Path(args.data_dir),
             "image_ext": None if args.image_ext is None else args.image_ext.split(","),
-            "dest_folder": Path(args.dest_folder),
+            "dest_folder": Path(args.output_folder),
             "recursive": args.recursive,
-            "pattern": args.pattern,
+            "name_pattern": args.name_pattern,
             "base_name": args.base_name,
+            "delete_original": args.delete_original,
+            "case_sensitive": args.case_sensitive,
+            "parallel": args.parallel,
         }
     )
 
@@ -141,7 +167,7 @@ def rename_image(
     fname: Union[str, Path],
     dest_folder: Union[str, Path] = "renamed",
     base_name: str = "IMG",
-    remove_original: bool = False,
+    delete_original: bool = False,
 ) -> bool:
     """
     Renames an image file based on its exif data and copies it to a specified destination folder.
@@ -150,7 +176,7 @@ def rename_image(
         fname (Union[str, Path]): A string or Path object specifying the file path of the image to rename and copy.
         dest_folder (Union[str, Path], optional): A string or Path object specifying the destination directory path to copy the renamed image to. Defaults to "renamed".
         base_name (str, optional): A string to use as the base name for the renamed image file. Defaults to "IMG".
-        remove_original (bool, optional): Whether to delete the original image file after copying the renamed image. Defaults to False.
+        delete_original (bool, optional): Whether to delete the original image file after copying the renamed image. Defaults to False.
 
     Returns:
         bool: Returns True if the image was successfully renamed and copied to the destination folder.
@@ -190,9 +216,41 @@ def rename_image(
     dst = dest_folder / new_name
     shutil.copyfile(src=fname, dst=dst)
 
-    # If remove_original is set to True, delete original image
-    if remove_original:
+    # If delete_original is set to True, delete original image
+    if delete_original:
         fname.unlink()
+
+    return True
+
+
+def main(opt: edict) -> bool:
+    files = read_image_list(
+        opt.data_dir, image_ext=opt.image_ext, recursive=opt.recursive
+    )
+
+    if opt.parallel:
+        start_time = time.time()
+        with multiprocessing.Pool() as p:
+            func = partial(
+                rename_image,
+                dest_folder=opt.dest_folder,
+                base_name=opt.base_name,
+                delete_original=opt.delete_original,
+            )
+            list(tqdm(p.imap(func, files)))
+        print(f"Elapsed time: {time.time() - start_time} seconds")
+
+    else:
+        start_time = time.time()
+        for file in tqdm(files):
+            if not rename_image(
+                fname=file,
+                dest_folder=opt.dest_folder,
+                base_name=opt.base_name,
+                delete_original=opt.delete_original,
+            ):
+                raise RuntimeError(f"Unable to rename file {file.name}")
+        print(f"Elapsed time: {time.time() - start_time} seconds")
 
     return True
 
@@ -201,11 +259,13 @@ if __name__ == "__main__":
     custom_opts = edict(
         {
             "data_dir": Path("data"),
-            "image_ext": ["jpg", "png"],
+            "image_ext": ["jpg"],
             "dest_folder": "renamed",
             "base_name": "IMG",
             "recursive": True,
-            "pattern": None,
+            "name_pattern": None,
+            "delete_original": False,
+            "parallel": True,
         }
     )
 
@@ -215,16 +275,7 @@ if __name__ == "__main__":
     else:
         opt = custom_opts
 
-    data_dir = opt.data_dir
-    image_ext = opt.image_ext
-    dest_folder = opt.dest_folder
-    recursive = opt.recursive
-    pattern = opt.pattern
-    base_name = opt.base_name
+    if not main(opt):
+        raise RuntimeError("Process failed unexpectedly.")
 
-    image_list = read_image_list(data_dir, image_ext=image_ext, recursive=recursive)
-    for file in image_list:
-        if not rename_image(fname=file, dest_folder=dest_folder, base_name=base_name):
-            raise RuntimeError(f"Unable to rename file {file.name}")
-
-    print("Done.")
+    print("Process completed.")
