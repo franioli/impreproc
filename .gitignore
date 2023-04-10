@@ -1,6 +1,7 @@
 # User-defined
 data/
 renamed/
+converted/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

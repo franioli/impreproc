@@ -8,11 +8,12 @@ from datetime import datetime
 from functools import partial
 from pathlib import Path
 from typing import List, Union
+import subprocess
 
 from easydict import EasyDict as edict
 from tqdm import tqdm
 
-from lib.images import Image
+from src.images import Image
 
 
 def parse_command_line() -> edict:
@@ -103,6 +104,11 @@ def parse_command_line() -> edict:
     return opt
 
 
+class ImageList:
+    def __init__(self) -> None:
+        pass
+
+
 def read_image_list(
     data_dir: Union[str, Path],
     image_ext: Union[str, List[str]] = None,
@@ -161,6 +167,10 @@ def read_image_list(
     files = sorted(files)
 
     return files
+
+
+def make_new_name():
+    pass
 
 
 def rename_image(
@@ -223,6 +233,57 @@ def rename_image(
     return True
 
 
+def convert_raw(
+    fname: Union[str, Path],
+    output_dir: Union[str, Path] = None,
+    profile_path: Union[str, Path] = None,
+    *args,
+) -> bool:
+    # Get path to RawTherapee executable (works only on Linux!)
+    rawtherapee_path = subprocess.run(
+        ["which", "rawtherapee-cli"], capture_output=True, text=True
+    ).stdout.replace("\n", "")
+
+    Path(output_dir).mkdir(exist_ok=True)
+
+    # Define base command
+    cmd = [
+        rawtherapee_path,
+        "-o",
+        str(output_dir),
+    ]
+
+    # Add option for processing a pp3 profile
+    if profile_path is not None:
+        assert Path(
+            profile_path
+        ).exists(), f"Input profile {profile_path} does not exist"
+        cmd.append("-p")
+        cmd.append(profile_path)
+
+    # Add additional options specified as **kwargs.
+    # **kwargs is a tuple of additonal options as
+    # # Rawtherapee options are described at  https://rawpedia.rawtherapee.com/Command-Line_Options
+    # e.g., ("-j100", "-js3")
+    for arg in args:
+        cmd.append(arg)
+
+    # Add input file as last parameter
+    cmd.append("-c")
+    cmd.append(str(fname))
+
+    # Run Conversion with RawTherapee
+    res = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+    )
+    if res.returncode == 0:
+        return True
+    else:
+        return False
+
+
 def main(opt: edict) -> bool:
     files = read_image_list(
         opt.data_dir, image_ext=opt.image_ext, recursive=opt.recursive
@@ -258,9 +319,9 @@ def main(opt: edict) -> bool:
 if __name__ == "__main__":
     custom_opts = edict(
         {
-            "data_dir": Path("data"),
-            "image_ext": ["jpg"],
-            "dest_folder": "renamed",
+            "data_dir": Path("data/mantova"),
+            "image_ext": ["dng"],  # ["jpg"]
+            "dest_folder": Path("converted"),
             "base_name": "IMG",
             "recursive": True,
             "name_pattern": None,
@@ -275,7 +336,23 @@ if __name__ == "__main__":
     else:
         opt = custom_opts
 
-    if not main(opt):
-        raise RuntimeError("Process failed unexpectedly.")
+    # if not main(opt):
+    #     raise RuntimeError("Process failed unexpectedly.")
+
+    # Conversion
+
+    data_dir = "/mnt/labmgf/2023/Volta_Mantovana_UniMI/IMG/P1/DJI_202303301417_002/raw/"
+    image_ext = "dng"
+    output_dir = "/mnt/p/voltamantovana2023/img"
+    recursive = False
+    pp3_path = "data/dji_p1_lightContrast_amaze0px.pp3"
+    rawtherapee_opts = ("-j100", "-js3", "-Y")
+
+    files = read_image_list(data_dir, image_ext=image_ext, recursive=recursive)
+    # ret = convert_raw(files[0], pp3_path, "-j100", "-js3", "-Y")
+
+    for file in tqdm(files):
+        if not convert_raw(file, output_dir, pp3_path, *rawtherapee_opts):
+            raise RuntimeError(f"Unable to convert file {file.name}")
 
     print("Process completed.")
