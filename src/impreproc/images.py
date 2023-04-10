@@ -33,8 +33,130 @@ import exifread
 import numpy as np
 
 from .camera import Camera
-from .geometry import undistort_image
 from .utils.sensor_width_database import SensorWidthDatabase
+
+
+def read_image_list(
+    data_dir: Union[str, Path],
+    image_ext: Union[str, List[str]] = None,
+    # name_pattern: str = None,
+    recursive: bool = False,
+    case_sensitive: bool = False,
+) -> List[Path]:
+    """
+    Returns a list of Path objects for all image files in a directory.
+
+    Args:
+        data_dir (Union[str, Path]): A string or Path object specifying the directory path containing image files.
+        image_ext (Union[str, List[str]], optional): A string or list of strings specifying the image file extensions to search for. Defaults to None, which searches for all file types.
+        name_pattern (str, optional): A string pattern to search for within image file names. Defaults to None.
+        recursive (bool, optional): Whether to search for image files recursively in subdirectories. Defaults to False.
+        case_sensitive (bool, optional): Whether to search for image files with case sensitivity. Defaults to False.
+
+    Returns:
+        [Path]: A list of Path objects for all image files found in the specified directory with the specified file extensions and name pattern.
+
+    Raises:
+        AssertionError: If the specified directory path is not valid.
+        AssertionError: If the specified image extension is not a string or list of strings with three characters each.
+
+    TODO:
+        Implement custom name patterns.
+
+    """
+    data_dir = Path(data_dir)
+    assert data_dir.is_dir(), "Error: invalid image directory."
+
+    if image_ext is not None:
+        msg = "Invalid input for image extension. It must be a 3 characters string (e.g., 'jpg') or a list of 3 characters strings (e.g., ['jpg', 'png'])"
+        assert any([isinstance(image_ext, list), isinstance(image_ext, str)]), msg
+        if isinstance(image_ext, str):
+            image_ext = [image_ext]
+        assert all([len(x) == 3 for x in image_ext]), msg
+        if not case_sensitive:
+            # Make glob search case-insensitive
+            image_ext_lower = [x.lower() for x in image_ext]
+            image_ext_upper = [x.upper() for x in image_ext]
+            image_ext = image_ext_lower + image_ext_upper
+
+        ext_patt = [f".{x}" for x in image_ext]
+    else:
+        ext_patt = [""]
+
+    files = []
+    for ext in ext_patt:
+        if recursive:
+            pattern = f"**/*{ext}"
+        else:
+            pattern = f"*{ext}"
+        files.extend(list(data_dir.glob(pattern)))
+
+    files = sorted(files)
+
+    return files
+
+
+class ImageList:
+    def __init__(
+        self,
+        data_dir: Union[str, Path],
+        image_ext: Union[str, List[str]] = None,
+        # name_pattern: str = None,
+        recursive: bool = False,
+        case_sensitive: bool = False,
+    ) -> None:
+        """
+        Inizialize a ImageList objects by calling read_image_list() function.
+
+        Args:
+            data_dir (Union[str, Path]): A string or Path object specifying the directory path containing image files.
+            image_ext (Union[str, List[str]], optional): A string or list of strings specifying the image file extensions to search for. Defaults to None, which searches for all file types.
+            name_pattern (str, optional): A string pattern to search for within image file names. Defaults to None.
+            recursive (bool, optional): Whether to search for image files recursively in subdirectories. Defaults to False.
+            case_sensitive (bool, optional): Whether to search for image files with case sensitivity. Defaults to False.
+        """
+        self._files = read_image_list(
+            data_dir=data_dir,
+            image_ext=image_ext,
+            recursive=recursive,
+            case_sensitive=case_sensitive,
+        )
+        self._current_idx = 0
+
+    def __len__(self):
+        return len(self._files)
+
+    def __getitem__(self, idx):
+        return self._files[idx]
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._current_idx >= len(self._files):
+            raise StopIteration
+        cur = self._current_idx
+        self._current_idx += 1
+        return self._files[cur]
+
+    def __repr__(self):
+        return f"ImageList with {len(self._files)} images."
+
+    @property
+    def files(self):
+        return self._files
+
+    def get_image_name(self, idx):
+        return self._files[idx].name
+
+    def get_image_path(self, idx):
+        return self._files[idx]
+
+    def get_image_folder(self, idx):
+        return self._files[idx].parent
+
+    def get_image_stem(self, idx):
+        return self._files[idx].stem
 
 
 # @TODO: remove variable number of outputs
@@ -379,209 +501,14 @@ class Image:
             np.ndarray: undistored image
         """
         self.read_image()
-        und_imge = undistort_image(
-            cv2.cvtColor(self._value_array, cv2.COLOR_RGB2BGR), camera, out_path
+
+        image_und = cv2.undistort(
+            cv2.cvtColor(self._value_array, cv2.COLOR_RGB2BGR),
+            camera.K,
+            camera.dist,
+            None,
+            camera.K,
         )
-        return und_imge
-
-
-class ImageDS:
-    """
-    Class to manage Image datasets for multi epoch
-
-    """
-
-    def __init__(
-        self,
-        folder: Union[str, Path],
-        ext: str = None,
-        recursive: bool = False,
-    ) -> None:
-        """
-        __init__ _summary_
-
-        Args:
-            folder (Union[str, Path]): Path to the image folder
-            ext (str, optional): Image extension for filtering files. If None is provided, all files in 'folder' are read. Defaults to None.
-            recursive (bool, optional): Read files recurevely. Defaults to False.
-
-        Raises:
-            IsADirectoryError: _description_
-        """
-        self.reset_imageds()
-
-        self.folder = Path(folder)
-        if not self.folder.exists():
-            msg = f"Error: invalid input path {self.folder}"
-            logging.error(msg)
-            raise IsADirectoryError(msg)
-        if ext is not None:
-            self.ext = ext
-        self.recursive = recursive
-
-        self.read_image_list(self.folder)
-
-    def __len__(self) -> int:
-        """Get number of images in the datastore"""
-        return len(self.files)
-
-    def __contains__(self, name: str) -> bool:
-        """Check if an image is in the datastore, given the image name"""
-        files = [x.name for x in self.files]
-        return name in files
-
-    def __getitem__(self, idx: int) -> str:
-        """Return image name (including extension) at position idx in datastore"""
-        return self.files[idx].name
-
-    def __iter__(self):
-        self._elem = 0
-        return self
-
-    def __next__(self):
-        while self._elem < len(self):
-            file = self.files[self._elem]
-            self._elem += 1
-            return file
-        else:
-            self._elem
-            raise StopIteration
-
-    def reset_imageds(self) -> None:
-        """Initialize image datastore"""
-        self.files = None
-        self.folder = None
-        self.ext = None
-        self._elem = 0
-
-    def read_image_list(self, recursive: bool = None) -> None:
-        assert self.folder.is_dir(), "Error: invalid image directory."
-
-        if recursive is not None:
-            self.recursive = recursive
-        if self.recursive:
-            rec_patt = "**/"
-        else:
-            rec_patt = ""
-        if self.ext is not None:
-            ext_patt = f".{self.ext}"
-        else:
-            ext_patt = ""
-        pattern = f"{rec_patt}*{ext_patt}"
-
-        self.files = sorted(self.folder.glob(pattern))
-
-        if len(self.files) == 0:
-            logging.error(f"No images found in folder {self.folder}")
-            return
-        try:
-            self.read_dates()
-        except OSError as err:
-            logging.exception(err)
-
-    def read_image(self, idx: int) -> Image:
-        """Return image at position idx as Image instance, containing both exif and value data (accessible by value proprierty, e.g., image.value)"""
-        image = Image(self.files[idx])
-        image.read_image()
-        return image
-
-    def read_dates(self) -> None:
-        """
-        read_dates Read date and time for all the images in ImageDS from exif.
-        """
-        assert self.files, "No image in ImageDS. Please read image list first"
-        self._dates, self._times = {}, {}
-        try:
-            for id, im in enumerate(self.files):
-                image = Image(im)
-                self._dates[id] = image.date
-                self._times[id] = image.time
-        except:
-            logging.error("Unable to read image dates and time from exif.")
-            self._dates, self._times = {}, {}
-            return
-
-    def get_image_path(self, idx: int) -> Path:
-        """Return path of the image at position idx in datastore as Pathlib"""
-        return self.files[idx]
-
-    def get_image_stem(self, idx: int) -> str:
-        """Return name without extension(stem) of the image at position idx in datastore"""
-        return self.files[idx].stem
-
-    def get_image_date(self, idx: int) -> str:
-        """Return name without extension(stem) of the image at position idx in datastore"""
-        return self._dates[idx]
-
-    def get_image_time(self, idx: int) -> str:
-        """Return name without extension(stem) of the image at position idx in datastore"""
-        return self._times[idx]
-
-    def write_exif_to_csv(
-        self, filename: str, sep: str = ",", header: bool = True
-    ) -> None:
-        assert self.folder.is_dir(), "Empty Image Datastore."
-        file = open(filename, "w")
-        if header:
-            file.write("epoch,name,date,time\n")
-        for i, img_path in enumerate(self.files):
-            img = Image(img_path)
-            name = img_path.name
-            date = img.date
-            time = img.time
-            file.write(f"{i}{sep}{name}{sep}{date}{sep}{time}\n")
-        file.close()
-
-
-if __name__ == "__main__":
-    """Test classes"""
-
-    images = ImageDS("assets/img/cam1")
-
-    # Read image dates and times
-    # images.read_dates()
-    print(images.get_image_date(0))
-    print(images.get_image_time(0))
-
-    # Get image name
-    print(images[0])
-
-    # Get image stem
-    print(images.get_image_stem(0))
-
-    # Get image path
-    print(images.get_image_path(0))
-
-    # Get image as Image object and extect date and time
-    img = images.read_image(0)
-    print(img.date)
-    print(img.time)
-
-    # Read image as numpy array
-    image = images.read_image(0).value
-
-    # Undistort image
-    # print(isinstance(image.undistort_image))
-
-    # Test ImageDS iterator
-    print(next(images))
-    print(next(images))
-    for i in images:
-        print(i)
-
-    # Build intrinics from exif
-    image = images.read_image(0)
-    K = image.get_intrinsics_from_exif()
-    print(K)
-
-    # Write exif to csv file
-    # filename = "test.csv"
-    # images.write_exif_to_csv(filename)
-
-    # cams = ["p1", "p2"]
-    # images = {}
-    # for cam in cams:
-    #     images[cam] = ImageDS(Path("data/img2021") / cam)
-    #     images[cam].write_exif_to_csv(f"data/img2021/image_list_{cam}.csv")
-
-    print("Done")
+        if out_path is not None:
+            cv2.imwrite(out_path, image_und)
+        return image_und
