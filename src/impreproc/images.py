@@ -33,8 +33,8 @@ import exifread
 import numpy as np
 
 from .camera import Camera
-from .sensor_width_database import SensorWidthDatabase
 from .geometry import undistort_image
+from .utils.sensor_width_database import SensorWidthDatabase
 
 
 # @TODO: remove variable number of outputs
