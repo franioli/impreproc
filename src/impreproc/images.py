@@ -32,8 +32,8 @@ import cv2
 import exifread
 import numpy as np
 
-from .camera import Camera
-from .utils.sensor_width_database import SensorWidthDatabase
+from impreproc.camera import Camera
+from impreproc.utils.sensor_width_database import SensorWidthDatabase
 
 
 def read_image_list(
@@ -512,3 +512,12 @@ class Image:
         if out_path is not None:
             cv2.imwrite(out_path, image_und)
         return image_und
+
+
+if __name__ == "__main__":
+    # Test ImageList class
+    data_dir = "data"
+    image_ext = "dng"
+    recursive = True
+    files = ImageList(data_dir, image_ext=image_ext, recursive=recursive)
+    print(files)

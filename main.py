@@ -29,7 +29,7 @@ def name_from_exif(
         base_name (str, optional): A string to use as the base name for the renamed image file. Defaults to "IMG".
 
     Returns:
-        Path: New name.
+        Path: New image name as a Pathlib object.
 
     Raises:
         RuntimeError: If the exif data cannot be read or if the image date-time cannot be retrieved from the exif data.
@@ -98,7 +98,7 @@ def rename_image(
 
 def convert_raw(
     fname: Union[str, Path],
-    output_dir: Union[str, Path] = None,
+    output_path: Union[str, Path] = None,
     profile_path: Union[str, Path] = None,
     *args,
 ) -> bool:
@@ -107,13 +107,13 @@ def convert_raw(
         ["which", "rawtherapee-cli"], capture_output=True, text=True
     ).stdout.replace("\n", "")
 
-    Path(output_dir).mkdir(exist_ok=True)
+    Path(output_path).mkdir(exist_ok=True)
 
     # Define base command
     cmd = [
         rawtherapee_path,
         "-o",
-        str(output_dir),
+        str(output_path),
     ]
 
     # Add option for processing a pp3 profile
@@ -197,15 +197,8 @@ if __name__ == "__main__":
     else:
         opt = custom_opts
 
-    # if not main(opt):
-    #     raise RuntimeError("Process failed unexpectedly.")
-
-    # Test new class
-    data_dir = "data/mantova"
-    image_ext = "dng"
-    output_dir = "converted"
-    recursive = False
-    files = ImageList(data_dir, image_ext=image_ext, recursive=recursive)
+    # Batch name renaming
+    # main(opt)
 
     # Conversion
     data_dir = "/mnt/labmgf/2023/Volta_Mantovana_UniMI/IMG/P1/DJI_202303301417_002/raw/"
@@ -216,8 +209,6 @@ if __name__ == "__main__":
     rawtherapee_opts = ("-j100", "-js3", "-Y")
 
     files = ImageList(data_dir, image_ext=image_ext, recursive=recursive)
-    # files = read_image_list(data_dir, image_ext=image_ext, recursive=recursive)
-
     # ret = convert_raw(files[0], pp3_path, "-j100", "-js3", "-Y")
 
     for file in tqdm(files):
