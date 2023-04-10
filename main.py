@@ -17,8 +17,45 @@ from impreproc.images import ImageList, Image
 from impreproc.parser import parse_command_line
 
 
-def make_new_name():
-    pass
+def name_from_exif(
+    fname: Union[str, Path],
+    base_name: str = "IMG",
+) -> Path:
+    """
+    Define new name for an image file based on its exif data.
+
+    Args:
+        fname (Union[str, Path]): A string or Path object specifying the file path of the image to rename and copy.
+        base_name (str, optional): A string to use as the base name for the renamed image file. Defaults to "IMG".
+
+    Returns:
+        Path: New name.
+
+    Raises:
+        RuntimeError: If the exif data cannot be read or if the image date-time cannot be retrieved from the exif data.
+    """
+    fname = Path(fname)
+    img = Image(fname)
+    exif = img.exif
+    date_time = img._date_time
+    if date_time is None:
+        raise RuntimeError("Unable to get image date-time from exif.")
+    try:
+        camera_model = exif["Image Model"].printable
+        camera_model = camera_model.replace(" ", "_")
+    except:
+        logging.warning("Unable to get camera model from exif.")
+        camera_model = ""
+    try:
+        focal = exif["EXIF FocalLength"].printable
+    except:
+        logging.warning("Unable to get nominal focal length from exif.")
+        focal = ""
+
+    date_time_str = date_time.strftime("%Y%m%d_%H%M%S")
+    new_name = f"{base_name}_{date_time_str}_{camera_model}{fname.suffix}"
+
+    return new_name
 
 
 def rename_image(
@@ -46,29 +83,7 @@ def rename_image(
     dest_folder = Path(dest_folder)
     dest_folder.mkdir(exist_ok=True, parents=True)
 
-    img = Image(fname)
-
-    try:
-        exif = img.exif
-    except:
-        raise RuntimeError("Unable to read exif data")
-    date_time = img._date_time
-    if date_time is None:
-        raise RuntimeError("Unable to get image date-time from exif.")
-    try:
-        camera_model = exif["Image Model"].printable
-        camera_model = camera_model.replace(" ", "_")
-    except:
-        logging.warning("Unable to get camera model from exif.")
-        camera_model = ""
-    try:
-        focal = exif["EXIF FocalLength"].printable
-    except:
-        logging.warning("Unable to get nominal focal length from exif.")
-        focal = ""
-
-    date_time_str = date_time.strftime("%Y%m%d_%H%M%S")
-    new_name = f"{base_name}_{date_time_str}_{camera_model}{fname.suffix}"
+    new_name = name_from_exif(fname=fname, base_name=base_name)
 
     # Do actual copy
     dst = dest_folder / new_name
