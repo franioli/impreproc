@@ -1,12 +1,32 @@
-# image_rename_batch
+# imgpreproc
 
 Python scripts for batch renaming large datasets of images, e.g., acquired by several UAVs photogrammetric flights with DJI drones.
 
 ## Installation
 
+Clone the repository
+
 ```bash
-conda create -n image_rename_batch python=3.8
-conda activate image_rename_batch
-python3.8 -m pip install --upgrade pip
-pip install -r requirements.txt
+git clone https://github.com/franioli/image_rename_batch.git
+cd image_rename_batch
 ```
+
+Note: the repository name has the old name of the package. The package name is currentely `imgpreproc`.
+
+Create an anaconda environment and upgrade pip
+
+```bash
+conda create -n imgpreproc python=3.9
+conda activate imgpreproc
+python3.8 -m pip install --upgrade pip
+```
+
+Install `imgpreproc` package and its dependancies by using pip
+
+```bash
+pip install -e .
+```
+
+## Note
+
+The repository is under active development. The name of the package and the name of the scripts may change in the future.

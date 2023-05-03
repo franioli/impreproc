@@ -19,6 +19,7 @@ dependencies = [
     "numpy",
     "pandas",
     "opencv-python",
+    "scipy",
     "exifread",
     "tqdm",
     "pyyaml",
