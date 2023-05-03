@@ -211,6 +211,10 @@ if __name__ == "__main__":
     files = ImageList(data_dir, image_ext=image_ext, recursive=recursive)
     # ret = convert_raw(files[0], pp3_path, "-j100", "-js3", "-Y")
 
+    # Read image to extract exif data
+    img = Image(files[0])
+    exif = img.exif
+
     for file in tqdm(files):
         if not convert_raw(file, output_dir, pp3_path, *rawtherapee_opts):
             raise RuntimeError(f"Unable to convert file {file.name}")
