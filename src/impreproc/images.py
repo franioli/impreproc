@@ -96,69 +96,6 @@ def read_image_list(
     return files
 
 
-class ImageList:
-    def __init__(
-        self,
-        data_dir: Union[str, Path],
-        image_ext: Union[str, List[str]] = None,
-        # name_pattern: str = None,
-        recursive: bool = False,
-        case_sensitive: bool = False,
-    ) -> None:
-        """
-        Inizialize a ImageList objects by calling read_image_list() function.
-
-        Args:
-            data_dir (Union[str, Path]): A string or Path object specifying the directory path containing image files.
-            image_ext (Union[str, List[str]], optional): A string or list of strings specifying the image file extensions to search for. Defaults to None, which searches for all file types.
-            name_pattern (str, optional): A string pattern to search for within image file names. Defaults to None.
-            recursive (bool, optional): Whether to search for image files recursively in subdirectories. Defaults to False.
-            case_sensitive (bool, optional): Whether to search for image files with case sensitivity. Defaults to False.
-        """
-        self._files = read_image_list(
-            data_dir=data_dir,
-            image_ext=image_ext,
-            recursive=recursive,
-            case_sensitive=case_sensitive,
-        )
-        self._current_idx = 0
-
-    def __len__(self):
-        return len(self._files)
-
-    def __getitem__(self, idx):
-        return self._files[idx]
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self._current_idx >= len(self._files):
-            raise StopIteration
-        cur = self._current_idx
-        self._current_idx += 1
-        return self._files[cur]
-
-    def __repr__(self):
-        return f"ImageList with {len(self._files)} images."
-
-    @property
-    def files(self):
-        return self._files
-
-    def get_image_name(self, idx):
-        return self._files[idx].name
-
-    def get_image_path(self, idx):
-        return self._files[idx]
-
-    def get_image_folder(self, idx):
-        return self._files[idx].parent
-
-    def get_image_stem(self, idx):
-        return self._files[idx].stem
-
-
 # @TODO: remove variable number of outputs
 def read_image(
     path: Union[str, Path],
@@ -222,6 +159,69 @@ def process_resize(w, h, resize):
     else:  # len(resize) == 2:
         w_new, h_new = resize[0], resize[1]
     return w_new, h_new
+
+
+class ImageList:
+    def __init__(
+        self,
+        data_dir: Union[str, Path],
+        image_ext: Union[str, List[str]] = None,
+        # name_pattern: str = None,
+        recursive: bool = False,
+        case_sensitive: bool = False,
+    ) -> None:
+        """
+        Inizialize a ImageList objects by calling read_image_list() function.
+
+        Args:
+            data_dir (Union[str, Path]): A string or Path object specifying the directory path containing image files.
+            image_ext (Union[str, List[str]], optional): A string or list of strings specifying the image file extensions to search for. Defaults to None, which searches for all file types.
+            name_pattern (str, optional): A string pattern to search for within image file names. Defaults to None.
+            recursive (bool, optional): Whether to search for image files recursively in subdirectories. Defaults to False.
+            case_sensitive (bool, optional): Whether to search for image files with case sensitivity. Defaults to False.
+        """
+        self._files = read_image_list(
+            data_dir=data_dir,
+            image_ext=image_ext,
+            recursive=recursive,
+            case_sensitive=case_sensitive,
+        )
+        self._current_idx = 0
+
+    def __len__(self):
+        return len(self._files)
+
+    def __getitem__(self, idx):
+        return self._files[idx]
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._current_idx >= len(self._files):
+            raise StopIteration
+        cur = self._current_idx
+        self._current_idx += 1
+        return self._files[cur]
+
+    def __repr__(self):
+        return f"ImageList with {len(self._files)} images."
+
+    @property
+    def files(self):
+        return self._files
+
+    def get_image_name(self, idx):
+        return self._files[idx].name
+
+    def get_image_path(self, idx):
+        return self._files[idx]
+
+    def get_image_folder(self, idx):
+        return self._files[idx].parent
+
+    def get_image_stem(self, idx):
+        return self._files[idx].stem
 
 
 class Image:
