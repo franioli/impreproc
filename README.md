@@ -11,13 +11,13 @@ git clone https://github.com/franioli/image_rename_batch.git
 cd image_rename_batch
 ```
 
-Note: the repository name has the old name of the package. The package name is currentely `imgpreproc`.
+Note: the repository name has the old name of the package. The package name is currentely `impreproc`.
 
 Create an anaconda environment and upgrade pip
 
 ```bash
-conda create -n imgpreproc python=3.9
-conda activate imgpreproc
+conda create -n impreproc python=3.9
+conda activate impreproc
 python3.8 -m pip install --upgrade pip
 ```
 
