@@ -65,7 +65,9 @@ def read_image_list(
 
     """
     data_dir = Path(data_dir)
-    assert data_dir.is_dir(), "Error: invalid image directory."
+    assert (
+        data_dir.is_dir()
+    ), f"Invalid input '{data_dir}' for data directory. It must be a valid directory path."
 
     if image_ext is not None:
         msg = "Invalid input for image extension. It must be a 3 characters string (e.g., 'jpg') or a list of 3 characters strings (e.g., ['jpg', 'png'])"

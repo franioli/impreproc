@@ -43,6 +43,10 @@ def main(opt: edict) -> bool:
     return True
 
 
+def read_images(folder: str) -> dict:
+    pass
+
+
 if __name__ == "__main__":
     # Run image renaming
     # custom_opts = edict(
