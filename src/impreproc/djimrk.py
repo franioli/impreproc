@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Union
 
 
-def mrkread(fname: Union[Path, str]) -> dict:
+def mrkread_old(fname: Union[Path, str]) -> dict:
     """
     mrkread Function to read DJI MRK files
 
@@ -57,3 +57,33 @@ def mrkread(fname: Union[Path, str]) -> dict:
         outdata["Flag"][i] = line[19]
 
     return outdata
+
+
+def get_images_old(folder: Union[str, Path], image_ext: str) -> dict:
+    files = ImageList(folder, image_ext=image_ext, recursive=False)
+
+    # Initialize dictionary
+    n = len(files)
+    exifdata = {
+        "Name": [None] * n,
+        "Path": [None] * n,
+        "Id": [None] * n,
+        "Date": [None] * n,
+        "Time": [None] * n,
+        "Lat": [None] * n,
+        "Lon": [None] * n,
+        "Ellh": [None] * n,
+    }
+
+    # Populate dictionary from exif data
+    for i, file in enumerate(files):
+        img = Image(file)
+        exifdata["Name"][i] = file.stem
+        exifdata["Path"][i] = str(file)
+        exifdata["Id"][i] = get_dji_id_from_name(file)
+        exifdata["Date"][i] = img.date
+        exifdata["Time"][i] = img.time
+        lat, lon, h = latlonalt_from_exif(img.exif)
+        exifdata["Lat"][i] = lat
+        exifdata["Lon"][i] = lon
+        exifdata["Ellh"][i] = h
