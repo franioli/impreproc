@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import TypedDict, Union
+from typing import TypedDict, Union, List
 
 import numpy as np
 
@@ -161,6 +161,7 @@ def get_images(folder: Union[str, Path], image_ext: str) -> dict:
             )
             exifdata[id] = data
         except Exception as e:
+            exifdata[id] = None
             print(f"Error reading file {file}: {e}")
 
     return exifdata
@@ -194,19 +195,24 @@ def merge_mrk_exif_data(mrk_dict: dict, exif_dict: dict) -> dict:
             }
             merged_dict[key] = data
         else:
+            merged_dict[key] = None
             print(f"Image {key} not found in EXIF data.")
 
     return merged_dict
 
 
-def project_to_utm(epsg_from: int, epsg_to: int, data_dict: dict) -> bool:
+def project_to_utm(
+    epsg_from: int,
+    epsg_to: int,
+    data_dict: dict,
+    fields: List[str] = ["lat", "lon", "ellh"],
+) -> bool:
     from pyproj import CRS
     from pyproj import Transformer
 
     assert epsg_from != epsg_to, "EPSG codes must be different"
-    assert "lat" in data_dict.keys(), "Latitude not found in data"
-    assert "lon" in data_dict.keys(), "Longitude not found in data"
-    assert "ellh" in data_dict.keys(), "Ellipsoid height not found in data"
+    assert len(fields) == 3, "Three fields must be specified"
+    assert all(isinstance(i, str) for i in fields), "Fields must be strings"
 
     try:
         crs_from = CRS.from_epsg(epsg_from)
@@ -219,9 +225,13 @@ def project_to_utm(epsg_from: int, epsg_to: int, data_dict: dict) -> bool:
         return False
 
     for key in data_dict.keys():
-        lat = data_dict[key]["lat"]
-        lon = data_dict[key]["lon"]
-        ellh = data_dict[key]["ellh"]
+        if data_dict[key] is None:
+            print(f"Image {key} not found in data.")
+            continue
+
+        lat = data_dict[key][fields[0]]
+        lon = data_dict[key][fields[1]]
+        ellh = data_dict[key][fields[2]]
         x, y, z = transformer.transform(lat, lon, ellh)
         data_dict[key]["E"] = x
         data_dict[key]["N"] = y
@@ -239,21 +249,25 @@ if __name__ == "__main__":
     exif_dict = get_images(data_dir, image_ext)
     merged_data = merge_mrk_exif_data(mrk_dict, exif_dict)
 
-    if not project_to_utm(4326, 32632, exif_dict):
+    if not project_to_utm(
+        epsg_from=4326,
+        epsg_to=32632,
+        data_dict=merged_data,
+        fields=["lat_mrk", "lon_mrk", "ellh_mrk"],
+    ):
         raise RuntimeError("Unable to data project to UTM.")
 
     # Projecting to UTM
+    # from pyproj import CRS
+    # from pyproj import Transformer
 
-    from pyproj import CRS
-    from pyproj import Transformer
+    # crs_4326 = CRS.from_epsg(4326)
+    # crs_32632 = CRS.from_epsg(32632)
 
-    crs_4326 = CRS.from_epsg(4326)
-    crs_32632 = CRS.from_epsg(32632)
+    # transformer = Transformer.from_crs(crs_from=crs_4326, crs_to=crs_32632)
 
-    transformer = Transformer.from_crs(crs_from=crs_4326, crs_to=crs_32632)
-
-    id = 1
-    lat, lon, ellh = exif_dict[id]["lat"], exif_dict[id]["lon"], exif_dict[id]["ellh"]
-    transformer.transform(lat, lon)
+    # id = 1
+    # lat, lon, ellh = exif_dict[id]["lat"], exif_dict[id]["lon"], exif_dict[id]["ellh"]
+    # transformer.transform(lat, lon)
 
     print("Process completed.")
