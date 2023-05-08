@@ -199,11 +199,14 @@ def merge_mrk_exif_data(mrk_dict: dict, exif_dict: dict) -> dict:
     return merged_dict
 
 
-def project_to_utm(epsg_from: int, epsg_to: int, data_dict: dict):
+def project_to_utm(epsg_from: int, epsg_to: int, data_dict: dict) -> bool:
     from pyproj import CRS
     from pyproj import Transformer
 
     assert epsg_from != epsg_to, "EPSG codes must be different"
+    assert "lat" in data_dict.keys(), "Latitude not found in data"
+    assert "lon" in data_dict.keys(), "Longitude not found in data"
+    assert "ellh" in data_dict.keys(), "Ellipsoid height not found in data"
 
     try:
         crs_from = CRS.from_epsg(epsg_from)
@@ -213,6 +216,7 @@ def project_to_utm(epsg_from: int, epsg_to: int, data_dict: dict):
         print(
             f"Unable to convert coordinate from EPSG:{epsg_from} to EPSG:{epsg_to}: {e}"
         )
+        return False
 
     for key in data_dict.keys():
         lat = data_dict[key]["lat"]
@@ -223,29 +227,7 @@ def project_to_utm(epsg_from: int, epsg_to: int, data_dict: dict):
         data_dict[key]["N"] = y
         data_dict[key]["h"] = z
 
-def project_to_utm(epsg_from: int, epsg_to: int, data_dict: dict):
-    from pyproj import CRS
-    from pyproj import Transformer
-
-    assert epsg_from != epsg_to, "EPSG codes must be different"
-
-    try:
-        crs_from = CRS.from_epsg(epsg_from)
-        crs_to = CRS.from_epsg(epsg_to)
-        transformer = Transformer.from_crs(crs_from=crs_from, crs_to=crs_to)
-    except Exception as e:
-        print(
-            f"Unable to convert coordinate from EPSG:{epsg_from} to EPSG:{epsg_to}: {e}"
-        )
-
-    for key in data_dict.keys():
-        lat = data_dict[key]["lat"]
-        lon = data_dict[key]["lon"]
-        ellh = data_dict[key]["ellh"]
-        x, y, z = transformer.transform(lat, lon, ellh)
-        data_dict[key]["E"] = x
-        data_dict[key]["N"] = y
-        data_dict[key]["h"] = z
+    return True
 
 
 if __name__ == "__main__":
@@ -257,7 +239,8 @@ if __name__ == "__main__":
     exif_dict = get_images(data_dir, image_ext)
     merged_data = merge_mrk_exif_data(mrk_dict, exif_dict)
 
-    project_to_utm(4326, 32632, exif_dict)
+    if not project_to_utm(4326, 32632, exif_dict):
+        raise RuntimeError("Unable to data project to UTM.")
 
     # Projecting to UTM
 
