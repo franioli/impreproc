@@ -201,6 +201,7 @@ class ImageList:
 
     def __next__(self):
         if self._current_idx >= len(self._files):
+            self._current_idx = 0
             raise StopIteration
         cur = self._current_idx
         self._current_idx += 1
@@ -212,6 +213,10 @@ class ImageList:
     @property
     def files(self):
         return self._files
+
+    @property
+    def head(self):
+        return self._files[:5]
 
     def get_image_name(self, idx):
         return self._files[idx].name

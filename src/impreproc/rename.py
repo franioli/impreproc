@@ -1,29 +1,30 @@
 import logging
+import multiprocessing
 import shutil
-
+import time
+from functools import partial
 from pathlib import Path
-from typing import List, Union
+from typing import List, Tuple, TypedDict, Union
 
-from impreproc.images import Image
+import cv2
+import numpy as np
+from tqdm import tqdm
+
+from impreproc.images import Image, ImageList
+
+
+class RenamingDict(TypedDict):
+    old_name: str
+    new_name: str
+    date: str
+    camera: str
+    focal: str
 
 
 def name_from_exif(
     fname: Union[str, Path],
     base_name: str = "IMG",
-) -> Path:
-    """
-    Define new name for an image file based on its exif data.
-
-    Args:
-        fname (Union[str, Path]): A string or Path object specifying the file path of the image to rename and copy.
-        base_name (str, optional): A string to use as the base name for the renamed image file. Defaults to "IMG".
-
-    Returns:
-        Path: New image name as a Pathlib object.
-
-    Raises:
-        RuntimeError: If the exif data cannot be read or if the image date-time cannot be retrieved from the exif data.
-    """
+) -> Tuple[str, RenamingDict]:
     fname = Path(fname)
     img = Image(fname)
     exif = img.exif
@@ -45,10 +46,74 @@ def name_from_exif(
     date_time_str = date_time.strftime("%Y%m%d_%H%M%S")
     new_name = f"{base_name}_{date_time_str}_{camera_model}{fname.suffix}"
 
-    return new_name
+    dic = RenamingDict(
+        old_name=fname.name,
+        new_name=new_name,
+        date=date_time_str,
+        camera=camera_model,
+        focal=focal,
+    )
+
+    return new_name, dic
 
 
-def rename_image(
+def overlay_text(
+    image: np.ndarray,
+    text: str,
+    font_scale: int = 5,
+    font_color: Tuple[int, int, int] = (255, 255, 255),
+    font_thickness: int = 10,
+    border_percentage: float = 0.03,
+) -> np.ndarray:
+    """Overlay text onto an image.
+
+    Args:
+        image (np.ndarray): The image onto which the text will be overlaid.
+        text (str): The text to be overlaid onto the image.
+        font_scale (int, optional): The size of the font for the text. Defaults to 5.
+        font_color (Tuple[int, int, int], optional): The color of the text in BGR format. Defaults to (255, 255, 255).
+        font_thickness (int, optional): The thickness of the text in pixels. Defaults to 10.
+        border_percentage (float, optional): The percentage of the image border to use as a margin for the text. Defaults to 0.03.
+
+    Returns:
+        np.ndarray: The modified image with text overlaid.
+    """
+
+    h, w, _ = image.shape
+    font = cv2.FONT_HERSHEY_SIMPLEX  # cv2.FONT_HERSHEY_DUPLEX
+    bottomLeftCornerOfText = (int(w * border_percentage), int(h * border_percentage))
+    fontScale = int(font_scale)
+    fontColor = font_color
+    thickness = int(font_thickness)
+    text_border = int(font_thickness * 0.8)
+    lineType = cv2.LINE_8
+    # Text border
+    cv2.putText(
+        image,
+        text,
+        bottomLeftCornerOfText,
+        font,
+        fontScale,
+        (0,),
+        thickness + text_border,
+        lineType,
+    )
+    # Inner text
+    cv2.putText(
+        image,
+        text,
+        bottomLeftCornerOfText,
+        font,
+        fontScale,
+        fontColor,
+        thickness,
+        lineType,
+    )
+
+    return image
+
+
+def copy_and_rename_fast(
     fname: Union[str, Path],
     dest_folder: Union[str, Path] = "renamed",
     base_name: str = "IMG",
@@ -73,7 +138,7 @@ def rename_image(
     dest_folder = Path(dest_folder)
     dest_folder.mkdir(exist_ok=True, parents=True)
 
-    new_name = name_from_exif(fname=fname, base_name=base_name)
+    new_name, _ = name_from_exif(fname=fname, base_name=base_name)
 
     # Do actual copy
     dst = dest_folder / new_name
@@ -84,3 +149,113 @@ def rename_image(
         fname.unlink()
 
     return True
+
+
+def copy_and_rename_overlay(
+    fname: Union[str, Path],
+    dest_folder: Union[str, Path] = "renamed",
+    base_name: str = "IMG",
+    overlay_name: bool = False,
+    delete_original: bool = False,
+) -> dict:
+    """
+    Copies an image and renames it according to its EXIF data. Can also overlay the new name on the copied image and
+    optionally delete the original image.
+
+    Args:
+        fname (Union[str, Path]): The file path of the image to be copied and renamed.
+        dest_folder (Union[str, Path], optional): The destination folder where the copied image will be saved. Defaults
+        to "renamed".
+        base_name (str, optional): The base name to be used for the copied image. Defaults to "IMG".
+        overlay_name (bool, optional): Whether or not to overlay the new name on the copied image. Defaults to False.
+        delete_original (bool, optional): Whether or not to delete the original image after copying and renaming. Defaults
+        to False.
+
+    Returns:
+        dict: A dictionary containing the extracted EXIF data.
+
+    Raises:
+        TypeError: If fname or dest_folder is not a string or a Path object.
+    """    
+    # Read image
+    image = cv2.imread(str(fname))
+
+    # Get new name
+    new_name, dic = name_from_exif(fname=fname, base_name=base_name)
+
+    # Overlay name on image
+    if overlay_name:
+        image = overlay_text(image=image, text=new_name)
+
+    # Write image
+    cv2.imwrite(str(dest_folder / new_name), image)
+
+    # If delete_original is set to True, delete original image
+    if delete_original:
+        fname.unlink()
+
+    return dic
+
+
+class ImageRenamer:
+    def __init__(
+        self,
+        image_list: ImageList,
+        dest_folder: Union[str, Path] = "renamed",
+        base_name: str = "IMG",
+        overlay_name: bool = False,
+        build_dictionary: bool = False,
+        delete_original: bool = False,
+        parallel: bool = False,
+    ) -> None:
+        self.image_list = image_list
+        self.dest_folder = Path(dest_folder)
+        self.base_name = base_name
+        self.delete_original = delete_original
+        self.build_dictionary = build_dictionary
+        self.overlay_name = overlay_name
+        self.parallel = parallel
+
+        self.renaming_dict = {}
+
+        if self.dest_folder.exists():
+            logging.warning(
+                f"Destination folder {self.dest_folder} already exists. Existing files may be overwritten."
+            )
+        else:
+            self.dest_folder.mkdir(parents=True)
+
+    def rename_fast(self) -> bool:
+        func = partial(
+            copy_and_rename_fast,
+            dest_folder=self.dest_folder,
+            base_name=self.base_name,
+            delete_original=self.delete_original,
+        )
+        if self.parallel:
+            with multiprocessing.Pool() as p:
+                list(tqdm(p.imap(func, self.image_list)))
+
+        else:
+            for file in tqdm(self.image_list):
+                if not func(file):
+                    raise RuntimeError(f"Unable to rename file {file.name}")
+        return True
+
+    def rename(self) -> dict:
+        func = partial(
+            copy_and_rename_overlay,
+            dest_folder=self.dest_folder,
+            base_name=self.base_name,
+            overlay_name=self.overlay_name,
+        )
+        if self.parallel:
+            with multiprocessing.Pool() as p:
+                out = list(tqdm(p.imap(func, self.image_list)))
+            self.renaming_dict = {k: v for k, v in enumerate(out)}
+
+        else:
+            for i, file in enumerate(tqdm(self.image_list)):
+                self.renaming_dict[i] = func(file)
+
+        return self.renaming_dict

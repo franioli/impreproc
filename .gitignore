@@ -2,6 +2,7 @@
 data/
 renamed/
 converted/
+res/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
