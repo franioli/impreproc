@@ -216,7 +216,9 @@ def project_to_utm(
 
     try:
         crs_from = CRS.from_epsg(epsg_from)
+        assert crs_from.is_geographic, "Initial CRS must be geographic."
         crs_to = CRS.from_epsg(epsg_to)
+        assert crs_to.is_projected, "Destination CRS to must be projected."
         transformer = Transformer.from_crs(crs_from=crs_from, crs_to=crs_to)
     except Exception as e:
         print(
@@ -232,9 +234,9 @@ def project_to_utm(
         lat = data_dict[key][fields[0]]
         lon = data_dict[key][fields[1]]
         ellh = data_dict[key][fields[2]]
-        x, y, z = transformer.transform(lat, lon, ellh)
+        x, y = transformer.transform(lat, lon)
         data_dict[key]["E"] = x
         data_dict[key]["N"] = y
-        data_dict[key]["h"] = z
+        # data_dict[key]["h"] = z
 
     return True

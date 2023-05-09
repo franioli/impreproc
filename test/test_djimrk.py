@@ -99,6 +99,12 @@ def test_project_to_utm():
     assert np.isclose(data_dict[1]["E"], 514596.494, rtol=1e-3)
     assert np.isclose(data_dict[1]["ellh"], 100.0, rtol=1e-5)
 
+    # # Test inverse transformation
+    # lat_, lon_, ellh_ = transformer.transform(x, y, z, direction="INVERSE")
+    # np.isclose(lat, lat_, atol=1e-8)
+    # np.isclose(lon, lon_, atol=1e-8)
+    # np.isclose(ellh, ellh_, atol=1e-8)
+
     # Test for invalid EPSG codes
     epsg_from = 4326
     epsg_to = 4326
