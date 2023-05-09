@@ -1,5 +1,4 @@
 import multiprocessing
-import sys
 import time
 from functools import partial
 from pathlib import Path
@@ -10,7 +9,6 @@ from tqdm import tqdm
 from impreproc.images import ImageList, Image
 from impreproc.raw_conversion import convert_raw
 from impreproc.rename import rename_image
-from impreproc import utils
 
 
 def main(opt: edict) -> bool:
@@ -18,13 +16,13 @@ def main(opt: edict) -> bool:
 
     if opt.parallel:
         start_time = time.time()
+        func = partial(
+            rename_image,
+            dest_folder=opt.dest_folder,
+            base_name=opt.base_name,
+            delete_original=opt.delete_original,
+        )
         with multiprocessing.Pool() as p:
-            func = partial(
-                rename_image,
-                dest_folder=opt.dest_folder,
-                base_name=opt.base_name,
-                delete_original=opt.delete_original,
-            )
             list(tqdm(p.imap(func, files)))
         print(f"Elapsed time: {time.time() - start_time} seconds")
 
@@ -41,11 +39,6 @@ def main(opt: edict) -> bool:
         print(f"Elapsed time: {time.time() - start_time} seconds")
 
     return True
-
-
-def read_images(folder: str) -> dict:
-    pass
-
 
 if __name__ == "__main__":
     # Run image renaming

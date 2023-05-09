@@ -70,7 +70,7 @@ def read_image_list(
     ), f"Invalid input '{data_dir}' for data directory. It must be a valid directory path."
 
     if image_ext is not None:
-        msg = "Invalid input for image extension. It must be a 3 characters string (e.g., 'jpg') or a list of 3 characters strings (e.g., ['jpg', 'png'])"
+        msg = "Invalid input for image extension. It must be a 3 characters string without the 'dot' (e.g., 'jpg') or a list of 3 characters strings (e.g., ['jpg', 'png'])"
         assert any([isinstance(image_ext, list), isinstance(image_ext, str)]), msg
         if isinstance(image_ext, str):
             image_ext = [image_ext]
