@@ -173,7 +173,7 @@ class ImageList:
         case_sensitive: bool = False,
     ) -> None:
         """
-        Inizialize a ImageList objects by calling read_image_list() function.
+        Initialize a new ImageList object by specifying the directory containing image files.
 
         Args:
             data_dir (Union[str, Path]): A string or Path object specifying the directory path containing image files.
@@ -181,6 +181,14 @@ class ImageList:
             name_pattern (str, optional): A string pattern to search for within image file names. Defaults to None.
             recursive (bool, optional): Whether to search for image files recursively in subdirectories. Defaults to False.
             case_sensitive (bool, optional): Whether to search for image files with case sensitivity. Defaults to False.
+
+        Example:
+
+        >>> from pathlib import Path
+        >>> from impreproc.images import ImageList
+        >>> data_dir = Path("/path/to/image/directory")
+        >>> image_list = ImageList(data_dir, image_ext=["jpg", "png"], recursive=True)
+
         """
         self._files = read_image_list(
             data_dir=data_dir,
