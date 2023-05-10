@@ -223,8 +223,10 @@ class ImageList:
         return self._files
 
     @property
-    def head(self):
-        return self._files[:5]
+    def head(self) -> None:
+        for file in self._files[:5]:
+            print(file)
+        return None
 
     def get_image_name(self, idx):
         return self._files[idx].name

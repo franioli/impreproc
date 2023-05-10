@@ -145,6 +145,7 @@ class RenamingDict(TypedDict):
 def name_from_exif(
     fname: Union[str, Path],
     base_name: str = "IMG",
+    prior_class_file: Union[str, Path] = None,
 ) -> Tuple[str, RenamingDict]:
     fname = Path(fname)
     img = Image(fname)
