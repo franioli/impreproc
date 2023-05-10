@@ -1,7 +1,6 @@
 import logging
 import multiprocessing
 import shutil
-import time
 from functools import partial
 from pathlib import Path
 from typing import List, Tuple, TypedDict, Union
@@ -144,13 +143,28 @@ class ImageRenamer:
 
         return self.renaming_df
 
-    def make_previews(self, dest_folder, **kwargs) -> None:
+    def make_previews(self, dest_folder, preview_size=None, **kwargs) -> None:
+        """
+        Create preview images for all images in the ImageList object.
+
+        Args:
+            dest_folder (str or Path): The destination folder where preview images will be saved.
+            preview_size (int or tuple, optional): The size of the preview image. Defaults to None.
+            **kwargs: Additional keyword arguments passed to the `make_previews` function.
+
+        Returns:
+            None
+
+        Raises:
+            RuntimeError: If unable to rename a file.
+
+        """
         dest_folder = Path(dest_folder)
         dest_folder.mkdir(parents=True, exist_ok=True)
         func = partial(
             make_previews,
             dest_folder=dest_folder,
-            preview_size=None,
+            preview_size=preview_size,
             base_name=self.base_name,
             overlay_name=self.overlay_name,
             **kwargs,
