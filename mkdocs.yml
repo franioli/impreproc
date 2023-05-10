@@ -29,3 +29,4 @@ nav:
       - images: modules/images.md
       - conversion: modules/conversion.md
       - renaming: modules/renaming.md
+      - djimrk: modules/djimrk.md

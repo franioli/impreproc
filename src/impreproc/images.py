@@ -1,33 +1,9 @@
-"""
-MIT License
-
-Copyright (c) 2022 Francesco Ioli
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
-
 import logging
 import os
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Tuple
 
 import cv2
 import exifread
@@ -49,7 +25,6 @@ class ImageList:
         Args:
             data_dir (Union[str, Path]): A string or Path object specifying the directory path containing image files.
             image_ext (Union[str, List[str]], optional): A string or list of strings specifying the image file extensions to search for. Defaults to None, which searches for all file types.
-            name_pattern (str, optional): A string pattern to search for within image file names. Defaults to None.
             recursive (bool, optional): Whether to search for image files recursively in subdirectories. Defaults to False.
             case_sensitive (bool, optional): Whether to search for image files with case sensitivity. Defaults to False.
 
@@ -439,7 +414,6 @@ def read_image_list(
     Args:
         data_dir (Union[str, Path]): A string or Path object specifying the directory path containing image files.
         image_ext (Union[str, List[str]], optional): A string or list of strings specifying the image file extensions to search for. Defaults to None, which searches for all file types.
-        name_pattern (str, optional): A string pattern to search for within image file names. Defaults to None.
         recursive (bool, optional): Whether to search for image files recursively in subdirectories. Defaults to False.
         case_sensitive (bool, optional): Whether to search for image files with case sensitivity. Defaults to False.
 
@@ -553,7 +527,9 @@ def process_resize(w, h, resize):
     return w_new, h_new
 
 
-def read_opencv_calibration(path: Union[str, Path], verbose: bool = False):
+def read_opencv_calibration(
+    path: Union[str, Path], verbose: bool = False
+) -> Tuple[np.ndarray]:
     """
     Reads camera internal orientation from a file and returns them. The file must contain the full K matrix and
     distortion vector according to OpenCV standards, and should be organized on one line in the following format:
@@ -567,7 +543,7 @@ def read_opencv_calibration(path: Union[str, Path], verbose: bool = False):
         verbose (bool, optional): Prints verbose output. Defaults to False.
 
     Returns:
-        Tuple: Returns a tuple containing:
+        Tuple[np.ndarray]: Returns a tuple containing:
             - w: width of the calibration image.
             - h: height of the calibration image.
             - K: 3x3 matrix containing the intrinsic camera parameters.

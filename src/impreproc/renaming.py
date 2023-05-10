@@ -58,7 +58,6 @@ class ImageRenamer:
             dest_folder (Union[str, Path], optional): The destination folder for the renamed images. Defaults to "renamed".
             base_name (str, optional): The base name for the renamed images. Defaults to "IMG".
             overlay_name (bool, optional): Whether to overlay the new name on the image. Defaults to False.
-            build_dictionary (bool, optional): Whether to build a dictionary mapping old names to new names. Defaults to False.
             delete_original (bool, optional): Whether to delete the original images after renaming. Defaults to False.
             parallel (bool, optional): Whether to use multiprocessing. Defaults to False.
         """
@@ -281,12 +280,10 @@ def copy_and_rename_overlay(
 
     Args:
         fname (Union[str, Path]): The file path of the image to be copied and renamed.
-        dest_folder (Union[str, Path], optional): The destination folder where the copied image will be saved. Defaults
-        to "renamed".
+        dest_folder (Union[str, Path], optional): The destination folder where the copied image will be saved. Defaults to "renamed".
         base_name (str, optional): The base name to be used for the copied image. Defaults to "IMG".
         overlay_name (bool, optional): Whether or not to overlay the new name on the copied image. Defaults to False.
-        delete_original (bool, optional): Whether or not to delete the original image after copying and renaming. Defaults
-        to False.
+        delete_original (bool, optional): Whether or not to delete the original image after copying and renaming. Defaults to False.
 
     Returns:
         dict: A dictionary containing the extracted EXIF data.

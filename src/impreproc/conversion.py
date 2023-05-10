@@ -72,7 +72,7 @@ class RawConverter:
         else:
             self.output_dir.mkdir(parents=True)
 
-    def convert(self, *args) -> bool:
+    def convert(self, *args: List[str]) -> bool:
         """
         Converts the raw image files to the specified format using RawTherapee.
 
@@ -98,7 +98,7 @@ def convert_raw(
     fname: Union[str, Path],
     output_path: Union[str, Path] = "converted",
     profile_path: Union[str, Path] = None,
-    *args,
+    *args: List[str],
 ) -> bool:
     """
     Converts a raw image file to a specified format using RawTherapee.
