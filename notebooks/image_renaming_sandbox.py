@@ -24,7 +24,6 @@ renamer = ImageRenamer(
     dest_folder=dest_folder,
     base_name=base_name,
     delete_original=delete_original,
-    overlay_name=overlay_name,
     parallel=parallel,
     prior_class_file=data_dir / "prior_classes.csv",
 )

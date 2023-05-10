@@ -22,7 +22,7 @@ class ImageRenamer:
         image_list (ImageList): A list of images to be renamed.
         dest_folder (Union[str, Path], optional): The destination folder where the renamed images will be saved. Defaults to "renamed".
         base_name (str, optional): The base name for the renamed images. Defaults to "IMG".
-        overlay_name (bool, optional): Whether to overlay the new name on the image. Defaults to False.
+        prior_class_file (Union[str, Path], optional): A CSV file containing prior classification data. Defaults to None.
         delete_original (bool, optional): Whether to delete the original image after renaming. Defaults to False.
         parallel (bool, optional): Whether to use multiprocessing for faster renaming. Defaults to False.
 
@@ -31,10 +31,20 @@ class ImageRenamer:
 
     Methods:
         rename(self) -> pd.DataFrame:
-            Renames the images from EXIF data. Returns a Pandas dataframe mappping the old to the new ones.
+            Renames the images from EXIF data. Returns a Pandas dataframe mapping the old to the new ones, and adding additional information from EXIF and, if provided, prior classification of the images.
 
             Returns:
-                pd.DataFrame: A dataframe mapping the old names to new ones.
+                pd.DataFrame: A dataframe mapping the old names to new ones and containing additional information from EXIF and, if provided, prior classification of the images.
+
+            Raises:
+                RuntimeError: If an error occurs while renaming an image.
+
+        make_previews(self, dest_folder, preview_size=None, **kwargs) -> None:
+            Creates a preview image for each renamed image, using the `make_previews` function with the specified parameters. The previews will be saved in the specified `dest_folder`.
+
+            Args:
+                dest_folder (Union[str, Path]): The destination folder for the preview images.
+                preview_size (Union[int, Tuple[int, int]], optional): The size of the preview image. Defaults to None.                **kwargs: Additional arguments to be passed to `make_previews`.
     """
 
     def __init__(
@@ -42,10 +52,10 @@ class ImageRenamer:
         image_list: ImageList,
         dest_folder: Union[str, Path] = "renamed",
         base_name: str = "IMG",
-        overlay_name: bool = False,
+        # overlay_name: bool = False,
+        prior_class_file: Union[str, Path] = None,
         delete_original: bool = False,
         parallel: bool = False,
-        prior_class_file: Union[str, Path] = None,
     ) -> None:
         """Initializes the ImageRenamer class.
 
@@ -53,7 +63,7 @@ class ImageRenamer:
             image_list (ImageList): A list of paths to the images to be renamed.
             dest_folder (Union[str, Path], optional): The destination folder for the renamed images. Defaults to "renamed".
             base_name (str, optional): The base name for the renamed images. Defaults to "IMG".
-            overlay_name (bool, optional): Whether to overlay the new name on the image. Defaults to False.
+            prior_class_file (Union[str, Path], optional): A CSV file containing prior classification data. Defaults to None.
             delete_original (bool, optional): Whether to delete the original images after renaming. Defaults to False.
             parallel (bool, optional): Whether to use multiprocessing. Defaults to False.
         """
@@ -61,7 +71,6 @@ class ImageRenamer:
         self.dest_folder = Path(dest_folder)
         self.base_name = base_name
         self.delete_original = delete_original
-        self.overlay_name = overlay_name
         self.parallel = parallel
 
         if self.dest_folder.exists():
