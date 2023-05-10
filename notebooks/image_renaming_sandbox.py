@@ -31,6 +31,7 @@ renamer = ImageRenamer(
 
 # Rename files and get Pandas Dataframe with old and new names
 df = renamer.rename()
+renamer.make_previews(dest_folder / "previews")
 
 # Save Pandas Dataframe as .csv and .parquet file
 df.to_csv(dest_folder / "renaming_dict.csv")

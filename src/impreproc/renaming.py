@@ -30,14 +30,8 @@ class ImageRenamer:
         renaming_dict (dict): A dictionary of the old and new names, if build_dictionary is set to True.
 
     Methods:
-        rename_fast(self) -> bool:
-            Renames the images without overlaying the new name.
-
-            Returns:
-                bool: True if all images were renamed successfully, False otherwise.
-
         rename(self) -> pd.DataFrame:
-            Renames the images and overlays the new name if overlay_name is set to True. Returns a Pandas dataframe mappping the old to the new ones.
+            Renames the images from EXIF data. Returns a Pandas dataframe mappping the old to the new ones.
 
             Returns:
                 pd.DataFrame: A dataframe mapping the old names to new ones.
@@ -52,7 +46,6 @@ class ImageRenamer:
         delete_original: bool = False,
         parallel: bool = False,
         prior_class_file: Union[str, Path] = None,
-        **kwargs,
     ) -> None:
         """Initializes the ImageRenamer class.
 
@@ -70,7 +63,6 @@ class ImageRenamer:
         self.delete_original = delete_original
         self.overlay_name = overlay_name
         self.parallel = parallel
-        self.kwargs = kwargs
 
         if self.dest_folder.exists():
             logging.warning(
@@ -90,30 +82,6 @@ class ImageRenamer:
                     f"Unable to read prior class file {prior_class_file}. It must be a two column csv file with the first column containing the image name and the second column containing the class as integer values. No header should be present."
                 )
 
-    def rename_fast(self) -> bool:
-        """Rename the images using multiprocessing and without overlaying the image names.
-
-        Returns:
-            bool: True if all files were renamed successfully.
-        Raises:
-            RuntimeError: If unable to rename a file.
-        """
-        func = partial(
-            copy_and_rename_fast,
-            dest_folder=self.dest_folder,
-            base_name=self.base_name,
-            delete_original=self.delete_original,
-        )
-        if self.parallel:
-            with multiprocessing.Pool() as p:
-                list(tqdm(p.imap(func, self.image_list)))
-
-        else:
-            for file in tqdm(self.image_list):
-                if not func(file):
-                    raise RuntimeError(f"Unable to rename file {file.name}")
-        return True
-
     def rename(self) -> pd.DataFrame:
         """
         Rename the images in `self.image_list`, applying the `copy_and_rename_overlay` function with the specified parameters
@@ -128,12 +96,10 @@ class ImageRenamer:
 
         """
         func = partial(
-            copy_and_rename_overlay,
+            copy_and_rename,
             dest_folder=self.dest_folder,
             base_name=self.base_name,
-            overlay_name=self.overlay_name,
             delete_original=self.delete_original,
-            **self.kwargs,
         )
         if self.parallel:
             with multiprocessing.Pool() as p:
@@ -168,6 +134,26 @@ class ImageRenamer:
                 logging.warning("Unable to merge prior class file with renaming dict.")
 
         return self.renaming_df
+
+    def make_previews(self, dest_folder, **kwargs) -> None:
+        dest_folder = Path(dest_folder)
+        dest_folder.mkdir(parents=True, exist_ok=True)
+        func = partial(
+            make_previews,
+            dest_folder=dest_folder,
+            preview_size=None,
+            base_name=self.base_name,
+            overlay_name=self.overlay_name,
+            **kwargs,
+        )
+        if self.parallel:
+            with multiprocessing.Pool() as p:
+                list(tqdm(p.imap(func, self.image_list)))
+
+        else:
+            for file in tqdm(self.image_list):
+                if not func(file):
+                    raise RuntimeError(f"Unable to rename file {file.name}")
 
 
 class RenamingDict(TypedDict):
@@ -231,14 +217,14 @@ def name_from_exif(
     return new_name, dic
 
 
-def copy_and_rename_fast(
+def copy_and_rename(
     fname: Union[str, Path],
     dest_folder: Union[str, Path] = "renamed",
     base_name: str = "IMG",
     delete_original: bool = False,
 ) -> bool:
     """
-    Renames an image file based on its exif data and copies it to a specified destination folder.
+    Renames an image file based on its EXIF data and copies it to a specified destination folder.
 
     Args:
         fname (Union[str, Path]): A string or Path object specifying the file path of the image to rename and copy.
@@ -247,53 +233,54 @@ def copy_and_rename_fast(
         delete_original (bool, optional): Whether to delete the original image file after copying the renamed image. Defaults to False.
 
     Returns:
-        bool: Returns True if the image was successfully renamed and copied to the destination folder.
+        dict: A dictionary containing the extracted EXIF data.
 
     Raises:
         RuntimeError: If the exif data cannot be read or if the image date-time cannot be retrieved from the exif data.
     """
     fname = Path(fname)
+
     dest_folder = Path(dest_folder)
     dest_folder.mkdir(exist_ok=True, parents=True)
-    new_name, _ = name_from_exif(fname=fname, base_name=base_name)
-    dst = dest_folder / new_name
-    shutil.copyfile(src=fname, dst=dst)
-    if delete_original:
-        fname.unlink()
-
-    return True
-
-
-def copy_and_rename_overlay(
-    fname: Union[str, Path],
-    dest_folder: Union[str, Path] = "renamed",
-    base_name: str = "IMG",
-    overlay_name: bool = False,
-    delete_original: bool = False,
-    **kwargs,
-) -> dict:
-    """
-    Copies an image and renames it according to its EXIF data. Can also overlay the new name on the copied image and
-    optionally delete the original image.
-
-    Args:
-        fname (Union[str, Path]): The file path of the image to be copied and renamed.
-        dest_folder (Union[str, Path], optional): The destination folder where the copied image will be saved. Defaults to "renamed".
-        base_name (str, optional): The base name to be used for the copied image. Defaults to "IMG".
-        overlay_name (bool, optional): Whether or not to overlay the new name on the copied image. Defaults to False.
-        delete_original (bool, optional): Whether or not to delete the original image after copying and renaming. Defaults to False.
-
-    Returns:
-        dict: A dictionary containing the extracted EXIF data.
-
-    Raises:
-        TypeError: If fname or dest_folder is not a string or a Path object.
-    """
-    # Read image
-    image = cv2.imread(str(fname))
 
     # Get new name
     new_name, dic = name_from_exif(fname=fname, base_name=base_name)
+
+    # Do the copy
+    dst = dest_folder / new_name
+    shutil.copyfile(src=fname, dst=dst)
+
+    # If requested, delete original
+    if delete_original:
+        fname.unlink()
+
+    return dic
+
+
+def make_previews(
+    fname: Union[str, Path],
+    dest_folder: Union[str, Path] = "previews",
+    base_name: str = "IMG",
+    preview_size: Tuple[int] = None,
+    overlay_name: bool = True,
+    **kwargs,
+) -> True:
+    """
+    Make image resized image previews for Potree Viewer and overlaying the image names.
+
+    NOTE:
+        this function is the old 'copy_and_rename_overlay'. Resizing is still missing. It is not necessary anymore to compute again new names, but names in dataframe may be used. Note that all the metadata are lost when creating previews.
+    """
+
+    # Read image
+    image = cv2.imread(str(fname))
+
+    # Resize image
+    if preview_size is not None:
+        image = cv2.resize(image, preview_size)
+
+    # Get new name
+    new_name, _ = name_from_exif(fname=fname, base_name=base_name)
 
     # Overlay name on image
     if overlay_name:
@@ -302,11 +289,7 @@ def copy_and_rename_overlay(
     # Write image
     cv2.imwrite(str(dest_folder / new_name), image)
 
-    # If delete_original is set to True, delete original image
-    if delete_original:
-        fname.unlink()
-
-    return dic
+    return True
 
 
 def overlay_text(
