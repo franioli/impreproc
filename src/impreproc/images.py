@@ -22,145 +22,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import os
 import logging
+import os
+from datetime import datetime
+from importlib import import_module
 from pathlib import Path
 from typing import List, Union
-from datetime import datetime
 
 import cv2
 import exifread
 import numpy as np
 
 from impreproc.camera import Camera
-from impreproc.utils.sensor_width_database import SensorWidthDatabase
-
-
-def read_image_list(
-    data_dir: Union[str, Path],
-    image_ext: Union[str, List[str]] = None,
-    # name_pattern: str = None,
-    recursive: bool = False,
-    case_sensitive: bool = False,
-) -> List[Path]:
-    """
-    Returns a list of Path objects for all image files in a directory.
-
-    Args:
-        data_dir (Union[str, Path]): A string or Path object specifying the directory path containing image files.
-        image_ext (Union[str, List[str]], optional): A string or list of strings specifying the image file extensions to search for. Defaults to None, which searches for all file types.
-        name_pattern (str, optional): A string pattern to search for within image file names. Defaults to None.
-        recursive (bool, optional): Whether to search for image files recursively in subdirectories. Defaults to False.
-        case_sensitive (bool, optional): Whether to search for image files with case sensitivity. Defaults to False.
-
-    Returns:
-        [Path]: A list of Path objects for all image files found in the specified directory with the specified file extensions and name pattern.
-
-    Raises:
-        AssertionError: If the specified directory path is not valid.
-        AssertionError: If the specified image extension is not a string or list of strings with three characters each.
-
-    TODO:
-        Implement custom name patterns.
-
-    """
-    data_dir = Path(data_dir)
-    assert (
-        data_dir.is_dir()
-    ), f"Invalid input '{data_dir}' for data directory. It must be a valid directory path."
-
-    if image_ext is not None:
-        msg = "Invalid input for image extension. It must be a 3 characters string without the 'dot' (e.g., 'jpg') or a list of 3 characters strings (e.g., ['jpg', 'png'])"
-        assert any([isinstance(image_ext, list), isinstance(image_ext, str)]), msg
-        if isinstance(image_ext, str):
-            image_ext = [image_ext]
-        assert all([len(x) == 3 for x in image_ext]), msg
-        if not case_sensitive:
-            # Make glob search case-insensitive
-            image_ext_lower = [x.lower() for x in image_ext]
-            image_ext_upper = [x.upper() for x in image_ext]
-            image_ext = image_ext_lower + image_ext_upper
-
-        ext_patt = [f".{x}" for x in image_ext]
-    else:
-        ext_patt = [""]
-
-    files = []
-    for ext in ext_patt:
-        if recursive:
-            pattern = f"**/*{ext}"
-        else:
-            pattern = f"*{ext}"
-        files.extend(list(data_dir.glob(pattern)))
-
-    files = sorted(files)
-
-    return files
-
-
-# @TODO: remove variable number of outputs
-def read_image(
-    path: Union[str, Path],
-    color: bool = True,
-    resize: List[int] = [-1],
-    crop: List[int] = None,
-) -> np.ndarray:
-    """
-    Reads image with OpenCV and returns it as a NumPy array.
-
-    Args:
-        path (Union[str, Path]): The path of the image.
-        color (bool, optional): Whether to read the image as color (RGB) or grayscale. Defaults to True.
-        resize (List[int], optional): If not [-1], image is resized at [width, height] dimensions. Defaults to [-1].
-        crop (List[int], optional): If not None, a List containing the bounding box for cropping the image as [xmin, xmax, ymin, ymax]. Defaults to None.
-
-    Returns:
-        np.ndarray: The image as a NumPy array.
-    """
-
-    if color:
-        flag = cv2.IMREAD_COLOR
-    else:
-        flag = cv2.IMREAD_GRAYSCALE
-
-    try:
-        image = cv2.imread(str(path), flag)
-    except:
-        logging.error(f"Impossible to load image {path}")
-        return None, None
-
-    if color:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-    if image is None:
-        if len(resize) == 1 and resize[0] == -1:
-            return None
-        else:
-            return None, None
-
-    w, h = image.shape[1], image.shape[0]
-    w_new, h_new = process_resize(w, h, resize)
-    scales = (float(w) / float(w_new), float(h) / float(h_new))
-    image = cv2.resize(image, (w_new, h_new))
-    if crop:
-        image = image[crop[1] : crop[3], crop[0] : crop[2]]
-
-    if len(resize) == 1 and resize[0] == -1:
-        return image
-    else:
-        return image, scales
-
-
-def process_resize(w, h, resize):
-    assert len(resize) > 0 and len(resize) <= 2
-    if len(resize) == 1 and resize[0] > -1:
-        scale = resize[0] / max(h, w)
-        w_new, h_new = int(round(w * scale)), int(round(h * scale))
-    elif len(resize) == 1 and resize[0] == -1:
-        w_new, h_new = w, h
-    else:  # len(resize) == 2:
-        w_new, h_new = resize[0], resize[1]
-    return w_new, h_new
 
 
 class ImageList:
@@ -470,6 +343,8 @@ class Image:
         Returns:
             K (np.ndarray): intrinsics matrix (3x3 numpy array).
         """
+        sens_db = import_module("impreproc.utils.sensor_width_database")
+
         if self._exif_data is None or len(self._exif_data) == 0:
             try:
                 self.read_exif()
@@ -482,7 +357,7 @@ class Image:
             logging.error("Focal length non found in exif data.")
             return None
         try:
-            sensor_width_db = SensorWidthDatabase()
+            sensor_width_db = sens_db.SensorWidthDatabase()
             sensor_width_mm = sensor_width_db.lookup(
                 self._exif_data["Image Make"].printable,
                 self._exif_data["Image Model"].printable,
@@ -529,6 +404,172 @@ class Image:
         if out_path is not None:
             cv2.imwrite(out_path, image_und)
         return image_und
+
+
+def read_image_list(
+    data_dir: Union[str, Path],
+    image_ext: Union[str, List[str]] = None,
+    # name_pattern: str = None,
+    recursive: bool = False,
+    case_sensitive: bool = False,
+) -> List[Path]:
+    """
+    Returns a list of Path objects for all image files in a directory.
+
+    Args:
+        data_dir (Union[str, Path]): A string or Path object specifying the directory path containing image files.
+        image_ext (Union[str, List[str]], optional): A string or list of strings specifying the image file extensions to search for. Defaults to None, which searches for all file types.
+        name_pattern (str, optional): A string pattern to search for within image file names. Defaults to None.
+        recursive (bool, optional): Whether to search for image files recursively in subdirectories. Defaults to False.
+        case_sensitive (bool, optional): Whether to search for image files with case sensitivity. Defaults to False.
+
+    Returns:
+        [Path]: A list of Path objects for all image files found in the specified directory with the specified file extensions and name pattern.
+
+    Raises:
+        AssertionError: If the specified directory path is not valid.
+        AssertionError: If the specified image extension is not a string or list of strings with three characters each.
+
+    TODO:
+        Implement custom name patterns.
+
+    """
+    data_dir = Path(data_dir)
+    assert (
+        data_dir.is_dir()
+    ), f"Invalid input '{data_dir}' for data directory. It must be a valid directory path."
+
+    if image_ext is not None:
+        msg = "Invalid input for image extension. It must be a 3 characters string without the 'dot' (e.g., 'jpg') or a list of 3 characters strings (e.g., ['jpg', 'png'])"
+        assert any([isinstance(image_ext, list), isinstance(image_ext, str)]), msg
+        if isinstance(image_ext, str):
+            image_ext = [image_ext]
+        assert all([len(x) == 3 for x in image_ext]), msg
+        if not case_sensitive:
+            # Make glob search case-insensitive
+            image_ext_lower = [x.lower() for x in image_ext]
+            image_ext_upper = [x.upper() for x in image_ext]
+            image_ext = image_ext_lower + image_ext_upper
+
+        ext_patt = [f".{x}" for x in image_ext]
+    else:
+        ext_patt = [""]
+
+    files = []
+    for ext in ext_patt:
+        if recursive:
+            pattern = f"**/*{ext}"
+        else:
+            pattern = f"*{ext}"
+        files.extend(list(data_dir.glob(pattern)))
+
+    files = sorted(files)
+
+    return files
+
+
+# @TODO: remove variable number of outputs
+def read_image(
+    path: Union[str, Path],
+    color: bool = True,
+    resize: List[int] = [-1],
+    crop: List[int] = None,
+) -> np.ndarray:
+    """
+    Reads image with OpenCV and returns it as a NumPy array.
+
+    Args:
+        path (Union[str, Path]): The path of the image.
+        color (bool, optional): Whether to read the image as color (RGB) or grayscale. Defaults to True.
+        resize (List[int], optional): If not [-1], image is resized at [width, height] dimensions. Defaults to [-1].
+        crop (List[int], optional): If not None, a List containing the bounding box for cropping the image as [xmin, xmax, ymin, ymax]. Defaults to None.
+
+    Returns:
+        np.ndarray: The image as a NumPy array.
+    """
+
+    if color:
+        flag = cv2.IMREAD_COLOR
+    else:
+        flag = cv2.IMREAD_GRAYSCALE
+
+    try:
+        image = cv2.imread(str(path), flag)
+    except:
+        logging.error(f"Impossible to load image {path}")
+        return None, None
+
+    if color:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    if image is None:
+        if len(resize) == 1 and resize[0] == -1:
+            return None
+        else:
+            return None, None
+
+    w, h = image.shape[1], image.shape[0]
+    w_new, h_new = process_resize(w, h, resize)
+    scales = (float(w) / float(w_new), float(h) / float(h_new))
+    image = cv2.resize(image, (w_new, h_new))
+    if crop:
+        image = image[crop[1] : crop[3], crop[0] : crop[2]]
+
+    if len(resize) == 1 and resize[0] == -1:
+        return image
+    else:
+        return image, scales
+
+
+def process_resize(w, h, resize):
+    assert len(resize) > 0 and len(resize) <= 2
+    if len(resize) == 1 and resize[0] > -1:
+        scale = resize[0] / max(h, w)
+        w_new, h_new = int(round(w * scale)), int(round(h * scale))
+    elif len(resize) == 1 and resize[0] == -1:
+        w_new, h_new = w, h
+    else:  # len(resize) == 2:
+        w_new, h_new = resize[0], resize[1]
+    return w_new, h_new
+
+
+def read_opencv_calibration(path: Union[str, Path], verbose: bool = False):
+    """
+    Read camera internal orientation from file and return them.
+    The file must contain the full K matrix and distortion vector,
+    according to OpenCV standards, and organized in one line, as follow:
+    width height fx 0. cx 0. fy cy 0. 0. 1. k1, k2, p1, p2, [k3, [k4, k5, k6
+    Values must be float(include the . after integers) and divided by a
+    white space.
+    -------
+    Returns: (w, h, K, dist)
+    """
+    path = Path(path)
+    if not path.exists():
+        raise ValueError("Calibration filed does not exist.")
+    with open(path, "r") as f:
+        data = np.loadtxt(f)
+        w = data[0]
+        h = data[1]
+        K = data[2:11].astype(float).reshape(3, 3, order="C")
+        if len(data) == 15:
+            if verbose:
+                logging.info("Using OPENCV camera model.")
+            dist = data[11:15].astype(float)
+        elif len(data) == 16:
+            if verbose:
+                logging.info("Using OPENCV camera model + k3")
+            dist = data[11:16].astype(float)
+        elif len(data) == 19:
+            if verbose:
+                logging.info("Using FULL OPENCV camera model")
+            dist = data[11:19].astype(float)
+        else:
+            raise ValueError(
+                "Invalid intrinsics data. Calibration file must be formatted as follows:\nwidth height fx 0. cx 0. fy cy 0. 0. 1. k1, k2, p1, p2, [k3, [k4, k5, k6"
+            )
+
+    return w, h, K, dist
 
 
 if __name__ == "__main__":

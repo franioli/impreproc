@@ -9,8 +9,9 @@ import pandas as pd
 
 from pathlib import Path
 
+
 DEFAULT_SENSOR_DB_PATH = (
-    Path("thirdparty/CameraSensorSizeDatabase") / "sensor_database.csv"
+    Path(__file__).parent / "CameraSensorSizeDatabase/sensor_database.csv"
 )
 
 
@@ -51,3 +52,15 @@ class SensorWidthDatabase:
             )
 
         return self.df.loc[selection_condition, "SensorWidth(mm)"].values[0]
+
+
+if __name__ == "__main__":
+
+    make = "NIKON CORPORATION"
+    model = "NIKON D800"
+
+    sensor_width_db = SensorWidthDatabase()
+    sensor_width_mm = sensor_width_db.lookup(make, model)
+
+
+    print("done")
