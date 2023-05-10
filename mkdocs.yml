@@ -26,6 +26,6 @@ nav:
   - Installation: installation.md
   - Getting started: getting_started.md
   - Modules:
-      - images: modules/images.py
-      - conversion: modules/conversion.py
-      - renaming: modules/renaming.py
+      - images: modules/images.md
+      - conversion: modules/conversion.md
+      - renaming: modules/renaming.md
