@@ -25,7 +25,8 @@ dependencies = [
     "pyyaml",
     "easydict",
     "xlrd",
-    "pyproj", 
+    "pyproj",
+    "affine",
 ]
 requires-python = ">=3.8"
 
