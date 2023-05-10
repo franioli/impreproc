@@ -25,3 +25,5 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Getting started: getting_started.md
+  - Modules:
+      - images: modules/images.py
