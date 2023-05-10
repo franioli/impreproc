@@ -36,11 +36,11 @@ class ImageRenamer:
             Returns:
                 bool: True if all images were renamed successfully, False otherwise.
 
-        rename(self) -> dict:
-            Renames the images and overlays the new name if overlay_name is set to True. Returns a dictionary of the old and new names.
+        rename(self) -> pd.DataFrame:
+            Renames the images and overlays the new name if overlay_name is set to True. Returns a Pandas dataframe mappping the old to the new ones.
 
             Returns:
-                dict: A dictionary of the old and new names.
+                pd.DataFrame: A dataframe mapping the old names to new ones.
     """
 
     def __init__(
@@ -327,7 +327,9 @@ def overlay_text(
         font_scale (int, optional): The size of the font for the text. Defaults to 5.
         font_color (Tuple[int, int, int], optional): The color of the text in BGR format. Defaults to (255, 255, 255).
         font_thickness (int, optional): The thickness of the text in pixels. Defaults to 10.
-        border_percentage (float, optional): The percentage of the image border to use as a margin for the text. Defaults to 0.03.
+        border_px (int, optional): The number of pixels from the edge of the image to use as a margin for the text. Defaults to 50.
+        background_color (Union[Tuple[int, int, int], None], optional): The color of the background behind the text. If None, no background is added. Defaults to (255, 255, 255).
+        background_buffer (int, optional): The number of pixels of padding to add around the text when a background is added. Defaults to 20.
 
     Returns:
         np.ndarray: The modified image with text overlaid.
