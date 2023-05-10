@@ -27,6 +27,7 @@ dependencies = [
     "xlrd",
     "pyproj",
     "affine",
+    "pyarrow",
 ]
 requires-python = ">=3.8"
 

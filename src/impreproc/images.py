@@ -401,6 +401,43 @@ class Image:
         return image_und
 
 
+def latlonalt_from_exif(exif: dict) -> tuple:
+    """Extracts the latitude, longitude, and altitude from the given EXIF data.
+
+    Args:
+        exif (dict): The EXIF data from which to extract the latitude, longitude, and altitude.
+
+    Returns:
+        tuple: A tuple containing the latitude (float), longitude (float), and altitude (float).
+
+    Raises:
+        AssertionError: If the latitude or longitude reference is not North or East, respectively, or if the altitude reference is not WGS84.
+    """
+    assert (
+        exif["GPS GPSLatitudeRef"].values[0] == "N"
+    ), "Latitude Reference is not North. Unable to process image."
+    assert (
+        exif["GPS GPSLongitudeRef"].values[0] == "E"
+    ), "Longitude Reference is not East. Unable to process image."
+    assert (
+        exif["GPS GPSAltitudeRef"].values[0] == 0
+    ), "Altitude Reference is not WGS84. Unable to process image."
+
+    lat = (
+        np.float32(exif["GPS GPSLatitude"].values[0])
+        + np.float32(exif["GPS GPSLatitude"].values[1]) / 60
+        + np.float32(exif["GPS GPSLatitude"].values[2]) / 3600
+    )
+    lon = (
+        np.float32(exif["GPS GPSLongitude"].values[0])
+        + np.float32(exif["GPS GPSLongitude"].values[1]) / 60
+        + np.float32(exif["GPS GPSLongitude"].values[2]) / 3600
+    )
+    alt = np.float32(exif["GPS GPSAltitude"].values[0])
+
+    return (lat, lon, alt)
+
+
 def read_image_list(
     data_dir: Union[str, Path],
     image_ext: Union[str, List[str]] = None,
