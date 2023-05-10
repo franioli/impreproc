@@ -33,8 +33,6 @@ import cv2
 import exifread
 import numpy as np
 
-from impreproc.camera import Camera
-
 
 class ImageList:
     def __init__(
@@ -270,7 +268,23 @@ class Image:
         self._value_array = None
 
     def read_exif(self) -> None:
-        """Read image exif with exifread and store them in a dictionary"""
+        """Reads the Exchangeable image file format (EXIF) metadata of an image file and stores them in a dictionary.
+
+        This function reads the EXIF data of an image file using the exifread library, and then stores the metadata
+        in a dictionary. The image path is specified by the `_path` attribute of the Image object.
+
+        If no EXIF data is available for the image, an error message will be logged.
+
+        If the EXIF data contains the image size information, this function extracts the width and height of the image
+        from the EXIF data and stores them in the `_width` and `_height` attributes of the Image object.
+
+        If the image size information is not available in the EXIF data, this function tries to load the image file and
+        obtain the image size from the Numpy array. If the image size cannot be obtained from either the EXIF data or the
+        Numpy array, a runtime error is raised.
+
+        Returns:
+            None
+        """
         try:
             f = open(self._path, "rb")
             self._exif_data = exifread.process_file(f, details=False)
@@ -314,12 +328,14 @@ class Image:
         self._date_time = datetime.strptime(date_str, self._date_time_fmt)
 
     def extract_patch(self, limits: List[int]) -> np.ndarray:
-        """Extract image patch
-        Parameters
-        __________
-        - limits (List[int]): List containing the bounding box coordinates as: [xmin, ymin, xmax, ymax]
-        __________
-        Return: patch (np.ndarray)
+        """
+        Extract a patch from the image.
+
+        Args:
+            limits (List[int]): A list containing the bounding box coordinates [xmin, ymin, xmax, ymax].
+
+        Returns:
+            np.ndarray: The image patch extracted from the image.
         """
         image = read_image(self._path)
         patch = image[
@@ -381,25 +397,29 @@ class Image:
         )
         return K
 
-    def undistort_image(self, camera: Camera, out_path: str = None) -> np.ndarray:
+    def undistort_image(
+        self, K: np.ndarray, dist: np.ndarray, out_path: str = None
+    ) -> np.ndarray:
         """
-        undistort_image Wrapper around undistort_image function icepy.sfm.geometry module
+        Wrapper around OpenCV's `cv2.undistort` function to undistort the image.
 
         Args:
-            camera (Camera): Camera object containing K and dist arrays.
+            K (np.ndarray): Camera intrinsic matrix.
+            dist (np.ndarray): Camera distortion coefficients.
             out_path (str, optional): Path for writing the undistorted image to disk. If out_path is None, undistorted image is not saved to disk. Defaults to None.
 
         Returns:
-            np.ndarray: undistored image
+            np.ndarray: Undistorted image as a numpy array.
         """
+
         self.read_image()
 
         image_und = cv2.undistort(
             cv2.cvtColor(self._value_array, cv2.COLOR_RGB2BGR),
-            camera.K,
-            camera.dist,
+            K,
+            dist,
             None,
-            camera.K,
+            K,
         )
         if out_path is not None:
             cv2.imwrite(out_path, image_und)
@@ -535,14 +555,25 @@ def process_resize(w, h, resize):
 
 def read_opencv_calibration(path: Union[str, Path], verbose: bool = False):
     """
-    Read camera internal orientation from file and return them.
-    The file must contain the full K matrix and distortion vector,
-    according to OpenCV standards, and organized in one line, as follow:
-    width height fx 0. cx 0. fy cy 0. 0. 1. k1, k2, p1, p2, [k3, [k4, k5, k6
-    Values must be float(include the . after integers) and divided by a
-    white space.
-    -------
-    Returns: (w, h, K, dist)
+    Reads camera internal orientation from a file and returns them. The file must contain the full K matrix and
+    distortion vector according to OpenCV standards, and should be organized on one line in the following format:
+
+    width height fx 0. cx 0. fy cy 0. 0. 1. k1 k2 p1 p2 [k3 [k4 k5 k6]]
+
+    All values must be float, and separated by a white space.
+
+    Args:
+        path (Union[str, Path]): The path to the calibration file.
+        verbose (bool, optional): Prints verbose output. Defaults to False.
+
+    Returns:
+        Tuple: Returns a tuple containing:
+            - w: width of the calibration image.
+            - h: height of the calibration image.
+            - K: 3x3 matrix containing the intrinsic camera parameters.
+            - dist: distortion parameters.
+    Raises:
+        ValueError: If the calibration file is not found or if the file is not formatted correctly.
     """
     path = Path(path)
     if not path.exists():
