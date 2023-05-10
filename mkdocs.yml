@@ -1,5 +1,5 @@
-site_name: ICEpy4D
-repo_url: https://github.com/franioli/icepy4d
+site_name: impreproc
+repo_url: https://github.com/franioli/image_rename_batch/
 site_author: Francesco Ioli
 
 theme:
