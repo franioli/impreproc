@@ -1,10 +1,12 @@
-import numpy as np
-import cv2
 import logging
-
-from typing import List, Union, Tuple
-from scipy import linalg
+from importlib import import_module
 from pathlib import Path
+from typing import List, Tuple, Union
+
+import cv2
+import numpy as np
+import pandas as pd
+from scipy import linalg
 
 
 class Camera:
@@ -435,6 +437,119 @@ class Camera:
         return mat_h
 
 
+class Calibration:
+    def __init__(self) -> None:
+        pass
+        self._width = None
+        self._height = None
+        self._K = None
+        self._dist = None
+
+    def camera_from_file(self, filename, format="agisoft-opencv"):
+        if format == "agisoft-opencv":
+            (
+                self._width,
+                self._height,
+                self._K,
+                self._dist,
+            ) = Calibration.read_agisoft_xml_opencv(filename)
+        else:
+            raise ValueError(f"Invalid format: {format}")
+        cam = Camera(self._width, self._height, self._K, self._dist)
+        return cam
+
+    @staticmethod
+    def read_opencv_calibration(fname: Union[str, Path]) -> Camera:
+        return read_opencv_calibration(fname)
+
+    @staticmethod
+    def get_intrinsics_from_exif(exif: dict) -> Camera:
+        """Constructs the camera intrinsics from exif tag.
+
+        Equation: focal_px=max(w_px,h_px)*focal_mm / ccdw_mm
+
+        Note:
+            References for this functions can be found:
+
+            * https://github.com/colmap/colmap/blob/e3948b2098b73ae080b97901c3a1f9065b976a45/src/util/bitmap.cc#L282
+            * https://openmvg.readthedocs.io/en/latest/software/SfM/SfMInit_ImageListing/
+            * https://photo.stackexchange.com/questions/40865/how-can-i-get-the-image-sensor-dimensions-in-mm-to-get-circle-of-confusion-from # noqa: E501
+
+        Returns:
+            K (np.ndarray): intrinsics matrix (3x3 numpy array).
+        """
+        sens_db = import_module("impreproc.utils.sensor_width_database")
+
+        try:
+            focal_length_mm = float(exif["EXIF FocalLength"].values[0])
+        except OSError:
+            logging.error("Unable to get sensor Focal length from EXIF data.")
+            return None
+        try:
+            sensor_width_db = sens_db.SensorWidthDatabase()
+            sensor_width_mm = sensor_width_db.lookup(
+                exif["Image Make"].printable,
+                exif["Image Model"].printable,
+            )
+        except OSError:
+            logging.error("Unable to get sensor size in mm from sensor database")
+            return None
+        try:
+            img_w_px = exif["EXIF ExifImageWidth"].values[0]
+            img_h_px = exif["EXIF ExifImageLength"].values[0]
+        except OSError:
+            logging.error("Unable to get image size in pixels from EXIF data.")
+            return None
+        focal_length_px = max(img_h_px, img_w_px) * focal_length_mm / sensor_width_mm
+        center_x = img_w_px / 2
+        center_y = img_h_px / 2
+        K = np.array(
+            [
+                [focal_length_px, 0.0, center_x],
+                [0.0, focal_length_px, center_y],
+                [0.0, 0.0, 1.0],
+            ],
+            dtype=float,
+        )
+        dist = np.zeros(5, dtype=float)
+        return img_w_px, img_h_px, K, dist
+
+    @staticmethod
+    def read_agisoft_xml(path: Union[str, Path]):
+        path = Path(path)
+        assert Path(path).suffix == ".xml", "File must be .xml"
+
+        import xml.etree.ElementTree as ET
+
+    @staticmethod
+    def read_agisoft_xml_opencv(path: Union[str, Path]):
+        ET = import_module("xml.etree.ElementTree")
+
+        tree = ET.parse(path)
+        root = tree.getroot()
+
+        camera_type = root[3].attrib["type_id"]
+        assert (
+            camera_type == "opencv-matrix"
+        ), "Invalid calibration file. Camera type must be 'opencv-matrix'"
+        time = root[0].text
+        w = int(root[1].text)
+        h = int(root[2].text)
+        K = np.array(root[3][3].text.split(), dtype=float).reshape(3, 3)
+        dist_ = np.array(root[4][3].text.split(), dtype=float)
+        k1, k2 = dist_[0], dist_[1]
+        p1, p2 = dist_[3], dist_[2]
+        k3, k4 = None, None
+        if len(dist_) == 5:
+            k3 = dist_[4]
+        elif len(dist_) == 6:
+            k3 = dist_[4]
+            k4 = dist_[5]
+        dist = np.array([k1, k2, p1, p2, k3, k4])
+
+        return w, h, K, dist
+
+
 def read_opencv_calibration(
     path: Union[str, Path], verbose: bool = False
 ) -> Tuple[np.ndarray]:
@@ -485,3 +600,18 @@ def read_opencv_calibration(
             )
 
     return w, h, K, dist
+
+    @staticmethod
+    def _read_camera_params_from_xml(filename):
+        tree = ET.parse(filename)
+        root = tree.getroot()
+        image_size = root.find("size")
+        width = int(image_size.find("width").text)
+        height = int(image_size.find("height").text)
+        K = np.zeros((3, 3), dtype=np.float64)
+        for i, node in enumerate(root.find("camera_matrix").findall("data")):
+            K[i // 3, i % 3] = float(node.text)
+        dist = np.zeros((1, 5), dtype=np.float64)
+        for i, node in enumerate(root.find("distortion_coefficients").findall("data")):
+            dist[0, i] = float(node.text)
+        return width, height, K, dist
