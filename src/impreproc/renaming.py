@@ -180,6 +180,21 @@ class ImageRenamer:
 
 
 class RenamingDict(TypedDict):
+    """A dictionary for storing metadata about an image being renamed.
+
+    Fields:
+    old_name (str): The original name of the image file.
+    new_name (str): The new name of the image file.
+    date (str): The date the image was taken in the format YYYY:MM:DD.
+    time (str): The time the image was taken in the format HH:MM:SS.
+    camera (str): The camera model that captured the image.
+    focal (float): The focal length of the lens that captured the image.
+    GPSlat (float): The latitude of the location where the image was taken.
+    GPSlon (float): The longitude of the location where the image was taken.
+    GPSh (float): The altitude of the location where the image was taken.
+    classification (int or None): The classification of the image, if applicable.
+    """
+
     old_name: str
     new_name: str
     date: str

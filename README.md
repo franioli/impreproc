@@ -21,7 +21,7 @@ conda activate impreproc
 python3.8 -m pip install --upgrade pip
 ```
 
-Install `imgpreproc` package and its dependancies by using pip
+Install `impreproc` package and its dependancies by using pip
 
 ```bash
 pip install -e .

@@ -1,4 +1,5 @@
-from impreproc.djimrk import mrkread, get_images, merge_mrk_exif_data, project_to_utm
+from impreproc.djimrk import get_images, merge_mrk_exif_data, mrkread
+from impreproc.transformations import Transformer
 
 if __name__ == "__main__":
     data_dir = "data/mrk_info/DJI_202303031031_001"
@@ -18,10 +19,11 @@ if __name__ == "__main__":
         raise RuntimeError("Unable to data project to UTM.")
 
     # tests for geoid undulation
-    from pyproj import CRS, Transformer
     import numpy as np
     import rasterio
-    from impreproc.transformations import xy2rc, rc2xy, bilinear_interpolate
+    from pyproj import CRS, Transformer
+
+    from impreproc.transformations import bilinear_interpolate, rc2xy, xy2rc
 
     lat, lon, ellh = 45.463873, 9.190653, 100.0
     epsg_from = 4326  # ETRS89

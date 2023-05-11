@@ -1,62 +1,121 @@
-from typing import List, Tuple
-from pyproj import CRS, Transformer
+import logging
+from importlib import import_module
+from pathlib import Path
+from typing import List, Tuple, Union
 
 import numpy as np
-from affine import Affine
+import pyproj
+import rasterio
+from rasterio import Affine
 
 
-def project_to_utm(
-    epsg_from: int,
-    epsg_to: int,
-    data_dict: dict,
-    fields: List[str] = ["lat", "lon", "ellh"],
-) -> bool:
+class Transformer:
     """
-    Converts geographic coordinates (latitude, longitude, ellipsoid height) to projected UTM coordinates
-    using the pyproj library.
+    A class for performing coordinate transformations between two different EPSG projections.
 
     Args:
-        epsg_from (int): EPSG code of the initial coordinate reference system (CRS).
-        epsg_to (int): EPSG code of the destination CRS.
-        data_dict (dict): Dictionary containing the data to be projected.
-        fields (List[str], optional): List of three fields specifying the names of the latitude, longitude,and ellipsoid height fields in the data dictionary, respectively. Default is ["lat", "lon", "ellh"].
-
-    Returns:
-        bool: True if the projection was successful, False otherwise.
+        epsg_from (int): EPSG code of the source projection.
+        epsg_to (int): EPSG code of the target projection.
+        transform3d (bool, optional): Flag indicating whether to perform 3D transformations. Defaults to False.
+        geoid_path (Union[str, Path], optional): Path to a raster file containing geoid undulation data.
+            Required if `transform3d` is True. Defaults to None.
 
     Raises:
-        AssertionError: If epsg_from is equal to epsg_to, if fields has a length other than 3, or if any element in fields is not a string.
+        AssertionError: If `epsg_from` and `epsg_to` are the same or not of integer type.
+
+    Attributes:
+        epsg_from (int): EPSG code of the source projection.
+        epsg_to (int): EPSG code of the target projection.
+        crs_from (pyproj.crs.CRS): CRS object of the source projection.
+        crs_to (pyproj.crs.CRS): CRS object of the target projection.
+        _transformer (pyproj.transformer.Transformer): Transformer object for performing the coordinate transformation.
+        transform3d (bool): Flag indicating whether to perform 3D transformations.
+        geoid_path (Union[str, Path]): Path to a raster file containing geoid undulation data.
+
+    Methods:
+        transform(lat: float, lon: float, ellh: float = None) -> Tuple[float, float] or Tuple[float, float, float]:
+            Transforms a given set of latitude, longitude, and, optionally, ellipsoidal height coordinates from the source projection to the target projection.
+
+            Args:
+                lat (float): Latitude coordinate in decimal degrees.
+                lon (float): Longitude coordinate in decimal degrees.
+                ellh (float, optional): Ellipsoidal height coordinate in meters. Required if `transform3d` is True.
+
+            Returns:
+                A tuple containing the transformed x, y, and z (if transform3d` is True) coordinates.
+
+            Raises:
+                ValueError: If `transform3d` is True but `geoid_path` is not provided.
     """
-    assert epsg_from != epsg_to, "EPSG codes must be different"
-    assert len(fields) == 3, "Three fields must be specified"
-    assert all(isinstance(i, str) for i in fields), "Fields must be strings"
 
-    try:
-        crs_from = CRS.from_epsg(epsg_from)
-        assert crs_from.is_geographic, "Initial CRS must be geographic."
-        crs_to = CRS.from_epsg(epsg_to)
-        assert crs_to.is_projected, "Destination CRS to must be projected."
-        transformer = Transformer.from_crs(crs_from=crs_from, crs_to=crs_to)
-    except Exception as e:
-        print(
-            f"Unable to convert coordinate from EPSG:{epsg_from} to EPSG:{epsg_to}: {e}"
+    def __init__(
+        self,
+        epsg_from: int,
+        epsg_to: int,
+        transfrom3d: bool = False,
+        geoid_path: Union[str, Path] = None,
+    ) -> None:
+        """Initializes a Transformer object for coordinate transformations.
+
+        Args:
+            epsg_from (int): EPSG code of the input coordinate reference system (CRS).
+            epsg_to (int): EPSG code of the output CRS.
+            transform3d (bool, optional): Indicates whether the transform should include a height component. Defaults to False.
+            geoid_path (Union[str, Path], optional): Path to a geoid undulation raster file for height correction. Defaults to None.
+
+        Raises:
+            AssertionError: Raised if `epsg_from` and `epsg_to` are the same integer value.
+
+        """
+        assert epsg_from != epsg_to, "EPSG codes must be different"
+        assert isinstance(epsg_from, int), "epsg_from must be an integer"
+        assert isinstance(epsg_to, int), "epsg_to must be an integer"
+
+        self.epsg_from = epsg_from
+        self.epsg_to = epsg_to
+        self.crs_from = pyproj.CRS.from_epsg(epsg_from)
+        self.crs_to = pyproj.CRS.from_epsg(epsg_to)
+        self._transformer = pyproj.Transformer.from_crs(
+            crs_from=self.crs_from, crs_to=self.crs_to
         )
-        return False
 
-    for key in data_dict.keys():
-        if data_dict[key] is None:
-            print(f"Image {key} not found in data.")
-            continue
+        if transfrom3d:
+            # TODO: Add checks on 3D CRS!
+            self.transform3d = transfrom3d
+            self.crs_from.to_3d()
+            self.crs_to.to_3d()
+        else:
+            self.transform3d = False
 
-        lat = data_dict[key][fields[0]]
-        lon = data_dict[key][fields[1]]
-        ellh = data_dict[key][fields[2]]
-        x, y = transformer.transform(lat, lon)
-        data_dict[key]["E"] = x
-        data_dict[key]["N"] = y
-        # data_dict[key]["h"] = z
+        self.geoid_path = geoid_path
 
-    return True
+    def transform(
+        self, lat: float, lon: float, ellh: float = None
+    ) -> Tuple[float, float, float]:
+        """
+        Transforms a given set of latitude, longitude, and, optionally, ellipsoidal height coordinates from the source projection to the target projection.
+
+        Args:
+            lat (float): Latitude coordinate in decimal degrees.
+            lon (float): Longitude coordinate in decimal degrees.
+            ellh (float, optional): Ellipsoidal height coordinate in meters. Required if `transform3d` is True.
+
+        Returns:
+            A tuple containing the transformed x, y, and z (if `transform3d` is True) coordinates.
+
+        Raises:
+            ValueError: If `transform3d` is True but `geoid_path` is not provided.
+            AssertionError: If `ellh` is not provided for 3D transformations.
+        """
+        if not self.transform3d:
+            x, y = self._transformer.transform(lat, lon, direction="FORWARD")
+            return x, y
+        else:
+            assert ellh is not None, "ellh must be provided for 3D transformations"
+            x, y, z_ellh = self._transformer.transform(
+                lat, lon, ellh, direction="FORWARD"
+            )
+            return x, y, z_ellh
 
 
 def xy2rc(tform: Affine, x: float, y: float) -> Tuple[float, float]:
@@ -127,5 +186,59 @@ def bilinear_interpolate(im, x, y):
     return wa * Ia + wb * Ib + wc * Ic + wd * Id
 
 
-def get_geoid_undulation():
-    pass
+def get_geoid_undulation(geoid_path: Union[str, Path]) -> Tuple[np.ndarray, Affine]:
+    """
+    Returns the geoid undulation and its affine transformation matrix from a geoid raster file.
+
+    Args:
+        geoid_path (Union[str, Path]): Path to the geoid raster file.
+
+    Returns:
+        Tuple[np.ndarray, Affine]: A tuple containing the geoid undulation as a NumPy array and its affine transformation matrix as a Rasterio Affine object.
+
+    Raises:
+        ImportError: Raised if rasterio is not installed in the system.
+    """
+    with rasterio.open(geoid_path) as src:
+        geoid = src.read(1)
+        tform = src.transform
+
+    return geoid, tform
+
+
+if __name__ == "__main__":
+    import pyproj
+
+    try:
+        rasterio = import_module("rasterio")
+    except ImportError as e:
+        logging.error(
+            "Unable to import rasterio for loading geoid undulation. Please install it using `pip install rasterio`"
+        )
+        raise e
+
+    lat, lon, ellh = 45.463873, 9.190653, 100.0
+    epsg_from = 4326  # ETRS89
+    epsg_to = 32632  # UTM zone 32N
+
+    transformer = Transformer(epsg_from, epsg_to, geoid_path="data/ITALGEO05_E00.tif")
+    x, y = transformer.transform(lat, lon)
+
+    assert np.isclose(x, 514904.631, rtol=1e-4)
+    assert np.isclose(y, 5034500.589, rtol=1e-4)
+
+    x, y, z_ellh = transformer.transform(lat, lon, ellh)
+    assert np.isclose(z_ellh, 100.0, rtol=1e-5)
+
+    # crs_from = pyproj.CRS.from_epsg(epsg_from)
+    # crs_to = pyproj.CRS.from_epsg(epsg_to)
+    # transformer = pyproj.Transformer.from_crs(crs_from=crs_from, crs_to=crs_to)
+    # x, y, z_ellh = transformer.transform(lat, lon, ellh, direction="FORWARD")
+
+    # Load geoid heights from geotiff
+    fname = "data/ITALGEO05_E00.tif"
+    with rasterio.open(fname) as src:
+        # Convert lat/lon to row/col
+        row, col = xy2rc(src.transform, lon, lat)
+        # Intepolate geoid height
+        geoid_undulation = bilinear_interpolate(src.read(1), col, row)

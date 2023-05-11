@@ -27,6 +27,7 @@ nav:
   - Getting started: getting_started.md
   - Modules:
       - images: modules/images.md
+      - camera: modules/camera.md
       - conversion: modules/conversion.md
       - renaming: modules/renaming.md
       - transformations: modules/transformations.md
