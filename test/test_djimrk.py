@@ -9,8 +9,8 @@ from impreproc.djimrk import (
     latlonalt_from_exif,
     merge_mrk_exif_data,
     mrkread,
-    project_to_utm,
 )
+from impreproc.transformations import project_to_utm
 from impreproc.images import Image, ImageList
 
 
