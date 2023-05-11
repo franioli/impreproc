@@ -51,6 +51,7 @@ class ImageRenamer:
         image_list: ImageList,
         dest_folder: Union[str, Path] = "renamed",
         base_name: str = "IMG",
+        progressive_ids: bool = False,
         # overlay_name: bool = False,
         prior_class_file: Union[str, Path] = None,
         delete_original: bool = False,
@@ -69,8 +70,15 @@ class ImageRenamer:
         self.image_list = image_list
         self.dest_folder = Path(dest_folder)
         self.base_name = base_name
+        self.progressive_ids = progressive_ids
         self.delete_original = delete_original
         self.parallel = parallel
+
+        if self.progressive_ids and self.parallel:
+            logging.warning(
+                "Unable to do parallel renaming with progressive id.Running renaming in a single process"
+            )
+            self.parallel = False
 
         if self.dest_folder.exists():
             logging.warning(
@@ -117,7 +125,10 @@ class ImageRenamer:
         else:
             renaming_dict = {}
             for i, file in enumerate(tqdm(self.image_list)):
-                renaming_dict[i] = func(file)
+                if self.progressive_ids:
+                    renaming_dict[i] = func(file, progressive_id=i)
+                else:
+                    renaming_dict[i] = func(file)
 
         self.renaming_df = pd.DataFrame.from_dict(renaming_dict, orient="index")
 
@@ -143,7 +154,9 @@ class ImageRenamer:
 
         return self.renaming_df
 
-    def make_previews(self, dest_folder, preview_size=None, **kwargs) -> None:
+    def make_previews(
+        self, dest_folder, resize_factor: float = -1, preview_size=None, **kwargs
+    ) -> None:
         """
         Create preview images for all images in the ImageList object.
 
@@ -166,7 +179,6 @@ class ImageRenamer:
             dest_folder=dest_folder,
             preview_size=preview_size,
             base_name=self.base_name,
-            overlay_name=self.overlay_name,
             **kwargs,
         )
         if self.parallel:
@@ -180,7 +192,7 @@ class ImageRenamer:
 
 
 class RenamingDict(TypedDict):
-    """A dictionary for storing metadata about an image being renamed.
+    """A dictionary for storing metadata about an image being renamed. It maps the old image name to the new one and stores additional metadata about the image.
 
     Fields:
     old_name (str): The original name of the image file.
@@ -195,6 +207,7 @@ class RenamingDict(TypedDict):
     classification (int or None): The classification of the image, if applicable.
     """
 
+    id: int
     old_name: str
     new_name: str
     date: str
@@ -210,6 +223,7 @@ class RenamingDict(TypedDict):
 def name_from_exif(
     fname: Union[str, Path],
     base_name: str = "IMG",
+    progressive_id: int = None,
 ) -> Tuple[str, RenamingDict]:
     fname = Path(fname)
     img = Image(fname)
@@ -236,10 +250,16 @@ def name_from_exif(
         )
         lat, lon, h = None, None, None
 
+    if progressive_id is not None:
+        id_str = f"_{str(progressive_id).zfill(4)}"
+    else:
+        id_str = ""
+
     date_time_str = date_time.strftime("%Y%m%d_%H%M%S")
-    new_name = f"{base_name}_{date_time_str}_{camera_model}{fname.suffix}"
+    new_name = f"{base_name}{id_str}_{date_time_str}_{camera_model}{fname.suffix}"
 
     dic = RenamingDict(
+        id=progressive_id,
         old_name=fname.name,
         new_name=new_name,
         date=img.date,
@@ -259,6 +279,7 @@ def copy_and_rename(
     fname: Union[str, Path],
     dest_folder: Union[str, Path] = "renamed",
     base_name: str = "IMG",
+    progressive_id: int = None,
     delete_original: bool = False,
 ) -> bool:
     """
@@ -282,7 +303,9 @@ def copy_and_rename(
     dest_folder.mkdir(exist_ok=True, parents=True)
 
     # Get new name
-    new_name, dic = name_from_exif(fname=fname, base_name=base_name)
+    new_name, dic = name_from_exif(
+        fname=fname, base_name=base_name, progressive_id=progressive_id
+    )
 
     # Do the copy
     dst = dest_folder / new_name

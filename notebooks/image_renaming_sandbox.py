@@ -1,7 +1,12 @@
+import logging
+from importlib import import_module
 from pathlib import Path
+from typing import List, Union
 
+import numpy as np
 import pandas as pd
 
+from impreproc.camera import Calibration, Camera
 from impreproc.images import Image, ImageList
 from impreproc.renaming import ImageRenamer
 
@@ -38,10 +43,23 @@ df.to_parquet(dest_folder / "renaming_dict.parquet")
 
 # Test for img calibration
 
-from pprint import pprint
 
 id = 0
 img = Image(files[id])
-print(img.exif["Image Model"])
+exif = img.exif
 K = img.get_intrinsics_from_exif()
-pprint(K)
+
+
+path = "data/d800_opencv.xml"
+path = Path(path)
+assert Path(path).suffix == ".xml", "File must be .xml"
+
+calib = Calibration()
+cam = calib.camera_from_file(filename=path)
+print(cam)
+
+w, h, K, dist = Calibration.read_agisoft_xml_opencv(path)
+print(w, h, K, dist)
+
+w, h, K, dist = Calibration.get_intrinsics_from_exif(exif)
+print(w, h, K, dist)
