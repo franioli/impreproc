@@ -132,6 +132,22 @@ def get_images(folder: Union[str, Path], image_ext: str) -> dict:
 
 
 def merge_mrk_exif_data(mrk_dict: dict, exif_dict: dict) -> dict:
+    """Merge MRK and EXIF data dictionaries.
+
+    This function takes two dictionaries, `mrk_dict` and `exif_dict`, and returns a new dictionary with
+    merged data. The keys of both dictionaries must match, and the output dictionary will have the same
+    keys as the input dictionaries.
+
+    Args:
+        mrk_dict (dict): A dictionary containing MRK data.
+        exif_dict (dict): A dictionary containing EXIF data.
+
+    Returns:
+        dict: A dictionary containing merged MRK and EXIF data.
+
+    Raises:
+        None.
+    """
     merged_dict = {}
     for key in mrk_dict.keys():
         if key in exif_dict.keys():
@@ -163,4 +179,3 @@ def merge_mrk_exif_data(mrk_dict: dict, exif_dict: dict) -> dict:
             print(f"Image {key} not found in EXIF data.")
 
     return merged_dict
-
