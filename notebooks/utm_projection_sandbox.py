@@ -1,4 +1,4 @@
-from impreproc.djimrk import get_images, merge_mrk_exif_data, mrkread
+from impreproc.djimrk import get_images, merge_mrk_exif_data, mrkread, project_to_utm
 from impreproc.transformations import Transformer
 
 if __name__ == "__main__":
