@@ -10,13 +10,13 @@ if __name__ == "__main__":
     exif_dict = get_images(data_dir, image_ext)
     merged_data = merge_mrk_exif_data(mrk_dict, exif_dict)
 
-    if not project_to_utm(
+    project_to_utm(
         epsg_from=4326,  # ETRS89
         epsg_to=32632,  # UTM zone 32N
         data_dict=merged_data,
-        fields=["lat_mrk", "lon_mrk", "ellh_mrk"],
-    ):
-        raise RuntimeError("Unable to data project to UTM.")
+        fields=["lat_mrk", "lon_mrk"],
+        inplace=True,
+    )
 
     # tests for geoid undulation
     import numpy as np

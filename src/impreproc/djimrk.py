@@ -1,4 +1,5 @@
 import re
+from copy import deepcopy
 from pathlib import Path
 from typing import List, TypedDict, Union
 
@@ -6,6 +7,7 @@ import numpy as np
 import pyproj
 
 from impreproc.images import Image, ImageList, latlonalt_from_exif
+from impreproc.transformations import Transformer
 
 
 class ExifData(TypedDict):
@@ -186,34 +188,38 @@ def project_to_utm(
     epsg_from: int,
     epsg_to: int,
     data_dict: dict,
-    fields: List[str] = ["lat", "lon", "ellh"],
-) -> bool:
+    fields: List[str] = ["lat", "lon"],
+    in_place: bool = False,
+) -> Union[dict, None]:
     """
-    Converts geographic coordinates (latitude, longitude, ellipsoid height) to projected UTM coordinates
-    using the pyproj library.
+    Converts geographic coordinates (latitude, longitude) to projected UTM coordinates using the pyproj library.
 
     Args:
         epsg_from (int): EPSG code of the initial coordinate reference system (pyproj.CRS).
         epsg_to (int): EPSG code of the destination pyproj.CRS.
         data_dict (dict): Dictionary containing the data to be projected.
-        fields (List[str], optional): List of three fields specifying the names of the latitude, longitude,and ellipsoid height fields in the data dictionary, respectively. Default is ["lat", "lon", "ellh"].
+        fields (List[str], optional): List of two fields specifying the names of the latitude and longitude fields in the data dictionary, respectively. Default is ["lat", "lon"].
+        in_place (bool, optional): If True, the projection is applied in-place to the data_dict. If False, a new dictionary with the projected coordinates is returned. Default is False.
 
     Returns:
-        bool: True if the projection was successful, False otherwise.
+        dict or None: A new dictionary with the projected coordinates or None if in_place is True.
 
     Raises:
         AssertionError: If epsg_from is equal to epsg_to, if fields has a length other than 3, or if any element in fields is not a string.
     """
     assert epsg_from != epsg_to, "EPSG codes must be different"
-    assert len(fields) == 3, "Three fields must be specified"
+    assert len(fields) == 2, "Two fields must be specified (e.g., ['lat', 'lon'])"
     assert all(isinstance(i, str) for i in fields), "Fields must be strings"
 
     try:
-        crs_from = pyproj.CRS.from_epsg(epsg_from)
-        assert crs_from.is_geographic, "Initial pyproj.CRS must be geographic."
-        crs_to = pyproj.CRS.from_epsg(epsg_to)
-        assert crs_to.is_projected, "Destination pyproj.CRS to must be projected."
-        transformer = pyproj.Transformer.from_crs(crs_from=crs_from, crs_to=crs_to)
+        transformer = Transformer(epsg_from=epsg_from, epsg_to=epsg_to)
+        assert (
+            transformer.crs_from.is_geographic
+        ), "Initial pyproj.CRS must be geographic."
+        assert (
+            transformer.crs_to.is_projected
+        ), "Destination pyproj.CRS to must be projected."
+
     except Exception as e:
         print(
             f"Unable to convert coordinate from EPSG:{epsg_from} to EPSG:{epsg_to}: {e}"
@@ -227,10 +233,14 @@ def project_to_utm(
 
         lat = data_dict[key][fields[0]]
         lon = data_dict[key][fields[1]]
-        ellh = data_dict[key][fields[2]]
         x, y = transformer.transform(lat, lon)
-        data_dict[key]["E"] = x
-        data_dict[key]["N"] = y
-        # data_dict[key]["h"] = z
 
-    return True
+        if in_place:
+            data_dict[key]["E"] = x
+            data_dict[key]["N"] = y
+            return None
+        else:
+            out = deepcopy(data_dict)
+            out[key]["E"] = x
+            out[key]["N"] = y
+            return out
