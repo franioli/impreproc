@@ -15,7 +15,6 @@ class ImageList:
         self,
         data_dir: Union[str, Path],
         image_ext: Union[str, List[str]] = None,
-        # name_pattern: str = None,
         recursive: bool = False,
         case_sensitive: bool = False,
     ) -> None:
@@ -63,6 +62,9 @@ class ImageList:
 
     def __repr__(self):
         return f"ImageList with {len(self._files)} images."
+
+    def __delitem__(self, idx):
+        del self._files[idx]
 
     @property
     def files(self):

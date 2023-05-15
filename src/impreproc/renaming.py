@@ -318,37 +318,62 @@ def copy_and_rename(
     return dic
 
 
+from impreproc.camera import Camera
+
+
 def make_previews(
     fname: Union[str, Path],
     dest_folder: Union[str, Path] = "previews",
-    base_name: str = "IMG",
-    preview_size: Tuple[int] = None,
+    resize_factor: float = -1,
+    resize_to: Union[int, Tuple[int]] = -1,
+    camera: Camera = None,
+    undistort: bool = False,
     overlay_name: bool = True,
+    output_format: str = "jpg",
     **kwargs,
 ) -> True:
     """
     Make image resized image previews for Potree Viewer and overlaying the image names.
 
-    NOTE:
-        this function is the old 'copy_and_rename_overlay'. Resizing is still missing. It is not necessary anymore to compute again new names, but names in dataframe may be used. Note that all the metadata are lost when creating previews.
     """
+
+    if camera is not None:
+        K = camera.K
+        dist = camera.dist
 
     # Read image
     image = cv2.imread(str(fname))
 
     # Resize image
-    if preview_size is not None:
-        image = cv2.resize(image, preview_size)
+    if resize_factor is not None:
+        if "interpolation_flag" in kwargs.keys():
+            intep_flag = kwargs["interpolation_flag"]
+        else:
+            intep_flag = cv2.INTER_LINEAR
+        image = cv2.resize(
+            image, None, fx=resize_factor, fy=resize_factor, interpolation=intep_flag
+        )
+        if camera is not None:
+            K_new = cv2.getOptimalNewCameraMatrix()
 
-    # Get new name
-    new_name, _ = name_from_exif(fname=fname, base_name=base_name)
+    if undistort:
+        assert camera is not None, "Camera object must be provided for undistortion."
+        dist_ = np.array([x for x in dist if x is not None], dtype=np.float64)
+        assert len(dist) in [
+            4,
+            5,
+            8,
+            12,
+            14,
+        ], f"Camera must have 4, 5, 8, 12 or 14 distortion coefficients, as in OpenCV. Got {len(camera.dist)}."
+        image = cv2.undistort(image, camera.K, dist, camera.K)
 
     # Overlay name on image
     if overlay_name:
-        image = overlay_text(image=image, text=new_name, **kwargs)
+        image = overlay_text(image=image, text=fname.stem, **kwargs)
 
     # Write image
-    cv2.imwrite(str(dest_folder / new_name), image)
+    cv2.imwrite(str(dest_folder / f"{fname.stem}.{output_format}"), image)
 
     return True
 
