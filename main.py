@@ -1,12 +1,30 @@
-import pytest
 import sys
+
+import pytest
 
 try:
     import impreproc
 except ImportError as e:
     raise ImportError(e)
 
-if __name__ == "__main__":
-    retcode = pytest.main()
 
+def run_tests():
+    retcode = pytest.main()
     sys.exit(retcode)
+
+
+def run_gui():
+    
+    from PyQt5.QtWidgets import QApplication
+
+    from impreproc.gui import MainWindow
+
+    # Run GUI
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    run_gui()

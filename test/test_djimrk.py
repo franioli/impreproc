@@ -3,7 +3,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from impreproc.djimrk import (
+from impreproc.dji import (
     get_dji_id_from_name,
     get_images,
     latlonalt_from_exif,
