@@ -1,17 +1,9 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Aug 22 17:25:16 2018
-
-@author: lorenzo rossi
-
-v 1
-2019-04-30
-"""
-
 import configparser
+import logging
 import os
 import sys
 from pathlib import Path
+
 import guidata
 import guidata.dataset.dataitems as di
 import guidata.dataset.datatypes as dt
@@ -21,7 +13,7 @@ from guidata.dataset.qtwidgets import DataSetEditGroupBox, DataSetShowGroupBox
 from guidata.qthelpers import add_actions, create_action, get_std_icon
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QSplitter
-import logging
+
 import impreproc.dji as dji
 
 _app = guidata.qapplication()  # not required if a QApplication has already been created

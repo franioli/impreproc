@@ -14,14 +14,13 @@ def run_tests():
 
 
 def run_gui():
-    
     from PyQt5.QtWidgets import QApplication
 
-    from impreproc.gui import MainWindow
+    from impreproc.gui import dji2metashape
 
     # Run GUI
     app = QApplication(sys.argv)
-    window = MainWindow()
+    window = dji2metashape.MainWindow()
     window.show()
     sys.exit(app.exec_())
 
