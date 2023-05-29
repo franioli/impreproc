@@ -305,8 +305,131 @@ def project_to_utm(
         return out
 
 
-def dji2csv():
-    pass
+def get_epsg_from_utm_zone(utm_zone: str) -> int:
+    utm_emisph = utm_zone[-1]
+    utm_zone = int(utm_zone[:-1])
+    utm_base = 32600 if utm_emisph == "N" else 32700
+    epsg_UTM = utm_base + utm_zone
+
+    return epsg_UTM
+
+
+def dji2csv(
+    data_dict: dict,
+    foutname: str,
+    flag_utm: bool = False,
+    utm_zone: str = "32N",
+    flag_useImageCoord: bool = False,
+    flag_qual: list = [50, 16, 1],
+    scale_factors: list = [1, 1, 1],
+) -> None:
+    """
+    Convert DJI metadata dictionary to CSV file.
+
+    Args:
+        data_dict (Dict): Dictionary containing DJI metadata.
+        foutname (str): Output CSV file name.
+        flag_utm (bool, optional): Flag to indicate UTM projection. Defaults to False.
+        utm_zone (str, optional): UTM zone. Defaults to "32N".
+        flag_useImageCoord (bool, optional): Flag to use image coordinates. Defaults to False.
+        flag_qual (List, optional): Quality flags. Defaults to [50, 16, 1].
+        scale_factors (List, optional): Scale factors. Defaults to [1, 1, 1].
+
+    Returns:
+        None
+
+    """
+
+    # Make deepcopy of data_dict to NOT modify input data
+    data4csv = deepcopy(data_dict)
+
+    # Use either coordinates from image EXIF metadata or from .mrk file
+    for k, v in data4csv.items():
+        if v is None:
+            logger.warning(f"Skipping image {k}: image not present in data folder.")
+            continue
+        if flag_useImageCoord == False:
+            v["lat"] = v["lat_mrk"]
+            v["lon"] = v["lon_mrk"]
+            v["ellh"] = v["ellh_mrk"]
+        else:
+            v["lat"] = v["lat_exif"]
+            v["lon"] = v["lon_exif"]
+            v["ellh"] = v["ellh_exif"]
+
+    # Apply UTM projection to coordinates
+    if flag_utm:
+        epsg_WGS84 = 4326
+        epsg_UTM = get_epsg_from_utm_zone(utm_zone)
+        project_to_utm(
+            epsg_from=epsg_WGS84,
+            epsg_to=epsg_UTM,
+            data_dict=data4csv,
+            fields=["lat", "lon", "ellh"],
+            in_place=True,
+        )
+
+    # Apply scaling factors to standard deviations obtained from .mrk file
+    for k, v in data4csv.items():
+        if v is None:
+            continue
+        if v["Qual_mrk"] == flag_qual[0]:
+            v["stdE"] = scale_factors[0] * v["stdE_mrk"]
+            v["stdN"] = scale_factors[0] * v["stdN_mrk"]
+            v["stdV"] = scale_factors[0] * v["stdV_mrk"]
+        elif v["Qual_mrk"] == flag_qual[1]:
+            v["stdE"] = scale_factors[1] * v["stdE_mrk"]
+            v["stdN"] = scale_factors[1] * v["stdN_mrk"]
+            v["stdV"] = scale_factors[1] * v["stdV_mrk"]
+        elif v["Qual_mrk"] == flag_qual[2]:
+            v["stdE"] = scale_factors[2] * v["stdE_mrk"]
+            v["stdN"] = scale_factors[2] * v["stdN_mrk"]
+            v["stdV"] = scale_factors[2] * v["stdV_mrk"]
+
+    # define header for csv file
+    header = [
+        "ID",
+        "Image Name",
+        "Image Path",
+        "Date [yyyy:mm:dd]",
+        "Time [hh:mm:ss]",
+        "Lon [deg]",
+        "Lat [deg]",
+        "h [m]",
+    ]
+    if flag_utm:
+        header.extend(
+            [
+                f"East UTM{utm_zone} [m]",
+                f"North UTM{utm_zone} [m]",
+                f"h UTM{utm_zone} [m]",
+            ]
+        )
+    header.extend(["stdE [m]", "stdN [m]", "stdV [m]"])
+
+    # write csv file
+    with open(foutname, "w") as fout:
+        fout.write(",".join(header) + "\n")
+        for k, v in data4csv.items():
+            if v is None:
+                continue
+            ln = [
+                v["id"],
+                Path(v["path_exif"]).name,
+                v["path_exif"],
+                v["date_exif"],
+                v["time_exif"],
+                v["lon"],
+                v["lat"],
+                v["ellh"],
+            ]
+            if flag_utm:
+                ln.extend([v["E"], v["N"], v["h"]])
+            ln.extend([v["stdE"], v["stdN"], v["stdV"]])
+            ln = [str(x) for x in ln]
+            fout.write(",".join(ln) + "\n")
+
+    logger.info(f"CSV file {foutname} written successfully.")
 
 
 def dji2xlsx(
@@ -332,22 +455,26 @@ def dji2xlsx(
         None
 
     """
-
-    if flag_utm == 1:
-        epsg_WGS84 = 4326
-
-        utm_emisph = utm_zone[-1]
-        utm_zone = int(utm_zone[:-1])
-        utm_base = 32600 if utm_emisph == "N" else 32700
-        epsg_UTM = utm_base + utm_zone
+    # Make deepcopy of data_dict to NOT modify input data
+    data_dict = deepcopy(data_dict)
 
     # Create an new Excel file and add a worksheet.
     xbook = xlsxwriter.Workbook(foutname, {"nan_inf_to_errors": True})
 
     # Write camera data -----------------------------------------------------------
     exif_xsheet = xbook.add_worksheet("EXIF")
-
+    h_exif = [
+        "ID",
+        "Image Name",
+        "Image Path",
+        "Date-Time",
+        "Lon [deg]",
+        "Lat [deg]",
+        "h [m]",
+    ]
     if flag_utm == 1:
+        epsg_WGS84 = 4326
+        epsg_UTM = get_epsg_from_utm_zone(utm_zone)
         project_to_utm(
             epsg_from=epsg_WGS84,
             epsg_to=epsg_UTM,
@@ -356,29 +483,13 @@ def dji2xlsx(
             suffix="_exif",
             in_place=True,
         )
-
-        h_exif = [
-            "ID",
-            "Image Name",
-            "Image Path",
-            "Date-Time",
-            "Lon [deg]",
-            "Lat [deg]",
-            "h [m]",
-            "East UTM%s%s [m]" % (utm_zone, utm_emisph),
-            "North UTM%s%s [m]" % (utm_zone, utm_emisph),
-            "h UTM%s%s [m]" % (utm_zone, utm_emisph),
-        ]
-    else:
-        h_exif = [
-            "ID",
-            "Image Name",
-            "Image Path",
-            "Date-Time",
-            "Lon [deg]",
-            "Lat [deg]",
-            "h [m]",
-        ]
+        h_exif.extend(
+            [
+                f"East UTM{utm_zone} [m]",
+                f"North UTM{utm_zone} [m]",
+                f"h UTM{utm_zone} [m]",
+            ]
+        )
 
     # header
     for i in range(len(h_exif)):
@@ -484,9 +595,9 @@ def dji2xlsx(
             "Lon [deg]",
             "Lat [deg]",
             "h [m]",
-            "East UTM%s%s [m]" % (utm_zone, utm_emisph),
-            "North UTM%s%s [m]" % (utm_zone, utm_emisph),
-            "h UTM%s%s [m]" % (utm_zone, utm_emisph),
+            f"East UTM{utm_zone} [m]",
+            f"North UTM{utm_zone} [m]",
+            f"h UTM{utm_zone} [m]",
             "ESDV [m]",
             "NSDV [m]",
             "VSDV [m]",
@@ -846,3 +957,5 @@ def dji2xlsx(
             # excel.Application.Quit()
         except:
             logger.warning("Problem while resizing columns!")
+
+    logger.info("Excel file created successfully.")

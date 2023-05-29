@@ -23,7 +23,7 @@ def setup_logger(
         handlers.append(logging.FileHandler(log_file))
     logging.basicConfig(
         level=log_level,
-        format="%(asctime)s | %(levelname)s | %(message)s",
+        format="%(asctime)s | %(levelname)s | %(filename)s - ln %(lineno)d | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=handlers,
     )

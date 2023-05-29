@@ -2,6 +2,7 @@ import configparser
 import logging
 import os
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 import guidata
@@ -271,7 +272,23 @@ class MainWindow(QMainWindow):
                     )
 
             if data.isCSV == True:
-                pass
+                dji.dji2csv(
+                    data_dict=merged_data,
+                    foutname=data.csvfile,
+                    flag_utm=data.isUTM,
+                    utm_zone=utmZones[data.utmZone],
+                    flag_useImageCoord=data.useImageCoord,
+                    flag_qual=[
+                        data.fixed_flagval,
+                        data.float_flagval,
+                        data.auton_flagval,
+                    ],
+                    scale_factors=[
+                        data.fixed_stdscale,
+                        data.float_stdscale,
+                        data.auton_stdscale,
+                    ],
+                )
 
             # done message
             msg = QMessageBox(parent=self)
