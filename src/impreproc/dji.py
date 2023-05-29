@@ -419,13 +419,25 @@ def dji2csv(
                 v["path_exif"],
                 v["date_exif"],
                 v["time_exif"],
-                v["lon"],
-                v["lat"],
-                v["ellh"],
+                f"{v['lon']:0.8f}",
+                f"{v['lat']:0.8f}",
+                f"{v['ellh']:0.3f}",
             ]
             if flag_utm:
-                ln.extend([v["E"], v["N"], v["h"]])
-            ln.extend([v["stdE"], v["stdN"], v["stdV"]])
+                ln.extend(
+                    [
+                        f"{v['E']:.3f}",
+                        f"{v['N']:.3f}",
+                        f"{v['h']:.3f}",
+                    ]
+                )
+            ln.extend(
+                [
+                    f"{v['stdE']:.4f}",
+                    f"{v['stdN']:.4f}",
+                    f"{v['stdV']:.4f}",
+                ]
+            )
             ln = [str(x) for x in ln]
             fout.write(",".join(ln) + "\n")
 
