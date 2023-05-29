@@ -31,4 +31,4 @@ nav:
       - conversion: modules/conversion.md
       - renaming: modules/renaming.md
       - transformations: modules/transformations.md
-      - djimrk: modules/djimrk.md
+      - djimrk: modules/dji.md

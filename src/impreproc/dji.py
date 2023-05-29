@@ -155,8 +155,6 @@ def merge_mrk_exif_data(mrk_dict: dict, exif_dict: dict) -> dict:
     Returns:
         dict: A dictionary containing merged MRK and EXIF data.
 
-    Raises:
-        None.
     """
     merged_dict = {}
     for key in mrk_dict.keys():

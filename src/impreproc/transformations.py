@@ -150,7 +150,7 @@ def rc2xy(tform: Affine, row: float, col: float) -> Tuple[float, float]:
     return xy[0][0], xy[1][0]
 
 
-def bilinear_interpolate(im, x, y):
+def bilinear_interpolate(im: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """Performs bilinear interpolation on a 2D array (single channel image given x, y arrays of unstructured query points.
     Args:
         im (np.ndarray): Single channel image.

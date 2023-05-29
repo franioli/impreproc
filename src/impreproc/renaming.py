@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+# NOTE: Only for make previews. It should be loaded only if needed.
+from impreproc.camera import Camera
 from impreproc.images import Image, ImageList, latlonalt_from_exif
 
 
@@ -155,15 +157,19 @@ class ImageRenamer:
         return self.renaming_df
 
     def make_previews(
-        self, dest_folder, resize_factor: float = -1, preview_size=None, **kwargs
+        self,
+        dest_folder: Union[str, Path],
+        resize_factor: float = -1,
+        preview_size=None,
+        **kwargs,
     ) -> None:
         """
         Create preview images for all images in the ImageList object.
 
         Args:
-            dest_folder (str or Path): The destination folder where preview images will be saved.
-            preview_size (int or tuple, optional): The size of the preview image. Defaults to None.
-            **kwargs: Additional keyword arguments passed to the `make_previews` function.
+            dest_folder (Union[str, Path], optional): The destination folder where preview images will be saved.
+            preview_size (float, optional): The size of the preview image. Defaults to None.
+            **kwargs (dict): Additional keyword arguments passed to the `make_previews` function.
 
         Returns:
             None
@@ -316,9 +322,6 @@ def copy_and_rename(
         fname.unlink()
 
     return dic
-
-
-from impreproc.camera import Camera
 
 
 def make_previews(
