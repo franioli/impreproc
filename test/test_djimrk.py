@@ -93,7 +93,17 @@ def test_project_to_utm():
     epsg_to = 32632  # UTM zone 32N
 
     # Test for successful conversion
-    assert project_to_utm(epsg_from, epsg_to, data_dict)
+    out = project_to_utm(epsg_from, epsg_to, data_dict)
+    assert isinstance(out, dict)
+    assert isinstance(out[1], dict)
+    assert np.isclose(out[1]["N"], 5035964.792, rtol=1e-3)
+    assert np.isclose(out[1]["E"], 514596.494, rtol=1e-3)
+    assert np.isclose(out[1]["ellh"], 100.0, rtol=1e-5)
+
+    # Test for inplace conversion
+    project_to_utm(epsg_from, epsg_to, data_dict, in_place=True)
+    assert isinstance(data_dict, dict)
+    assert isinstance(data_dict[1], dict)
     assert np.isclose(data_dict[1]["N"], 5035964.792, rtol=1e-3)
     assert np.isclose(data_dict[1]["E"], 514596.494, rtol=1e-3)
     assert np.isclose(data_dict[1]["ellh"], 100.0, rtol=1e-5)
@@ -132,11 +142,10 @@ def test_project_to_utm():
 
 
 if __name__ == "__main__":
-    pass
     # data_dir = "data/matrice/DJI_202303031031_001"
     # image_ext = "JPG"
     # files = ImageList(data_dir, image_ext=image_ext, recursive=False)
     # img = Image(files[0])
     # exif = img.exif
 
-    # test_project_to_utm()
+    test_project_to_utm()

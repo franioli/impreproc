@@ -194,7 +194,7 @@ def project_to_utm(
     epsg_to: int,
     data_dict: dict,
     fields: List[str] = ["lat", "lon"],
-    suffix: str = "utm",
+    suffix: str = "",
     in_place: bool = False,
 ) -> Union[dict, None]:
     """
@@ -205,7 +205,7 @@ def project_to_utm(
         epsg_to (int): EPSG code of the destination pyproj.CRS.
         data_dict (dict): Dictionary containing the data to be projected.
         fields (List[str], optional): List of two fields specifying the names of the latitude and longitude fields in the data dictionary, respectively. Default is ["lat", "lon"].
-        suffix (str): Suffix to be appended to the new fields in the data dictionary. Default is "utm".
+        suffix (str): Suffix to be appended to the new fields in the data dictionary. Default is "".
         in_place (bool, optional): If True, the projection is applied in-place to the data_dict. If False, a new dictionary with the projected coordinates is returned. Default is False.
 
     Returns:
@@ -265,13 +265,15 @@ def project_to_utm(
         x, y = transformer.transform(lat, lon)
 
         if in_place:
-            row[f"E_{suffix}"] = x
-            row[f"N_{suffix}"] = y
+            row[f"E{suffix}"] = x
+            row[f"N{suffix}"] = y
             if len(fields) == 3:
-                row[f"h_{suffix}"] = deepcopy(row[fields[2]])
+                row[f"h{suffix}"] = deepcopy(row[fields[2]])
         else:
-            out[key][f"E_{suffix}"] = x
-            out[key][f"N_{suffix}"] = y
+            out[key][f"E{suffix}"] = x
+            out[key][f"N{suffix}"] = y
+            if len(fields) == 3:
+                row[f"h{suffix}"] = deepcopy(row[fields[2]])
 
     if in_place:
         return None
