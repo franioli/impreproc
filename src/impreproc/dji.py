@@ -1,11 +1,11 @@
 import logging
+import platform
 import re
 from copy import deepcopy
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
 from typing import List, TypedDict, Union
-import platform
 
 import numpy as np
 import pyproj
@@ -15,6 +15,27 @@ from impreproc.images import Image, ImageList, latlonalt_from_exif
 from impreproc.transformations import Transformer
 
 logger = logging.getLogger(__name__)
+
+
+# Define type hints
+class DataDict(TypedDict):
+    id: int
+    clock_time: float
+    lat: float
+    lon: float
+    ellh: float
+    stdE: float
+    stdN: float
+    stdV: float
+    dE: float
+    dN: float
+    dV: float
+    Qual: float
+    Flag: float
+    name: str
+    path: str
+    date: str
+    time: str
 
 
 class ExifData(TypedDict):
@@ -42,6 +63,9 @@ class MrkData(TypedDict):
     dV: float
     Qual: float
     Flag: float
+
+
+# Functions
 
 
 def get_dji_id_from_name(fname: str) -> int:
@@ -136,7 +160,7 @@ def get_images(folder: Union[str, Path], image_ext: str) -> dict:
             exifdata[id] = data
         except Exception as e:
             exifdata[id] = None
-            logging.error(f"Error reading file {file}: {e}")
+            logger.error(f"Error reading file {file}: {e}")
 
     return exifdata
 
@@ -184,7 +208,7 @@ def merge_mrk_exif_data(mrk_dict: dict, exif_dict: dict) -> dict:
             merged_dict[key] = data
         else:
             merged_dict[key] = None
-            logging.warning(f"Image {key} not found in EXIF data.")
+            logger.warning(f"Image {key} not found in EXIF data.")
 
     return merged_dict
 
@@ -222,7 +246,7 @@ def project_to_utm(
     assert all(isinstance(i, str) for i in fields), "Fields must be strings"
 
     if len(fields) == 3:
-        logging.warning(
+        logger.warning(
             "Height transformation not implemented yet. Hellispoidical height will be used."
         )
 
@@ -236,7 +260,7 @@ def project_to_utm(
         ), "Destination pyproj.CRS to must be projected."
 
     except Exception as e:
-        logging.exception(
+        logger.exception(
             f"Unable to convert coordinate from EPSG:{epsg_from} to EPSG:{epsg_to}: {e}"
         )
         return None
@@ -247,7 +271,7 @@ def project_to_utm(
     for key, row in data_dict.items():
         # Check if image is present in data_dict
         if row is None:
-            logging.warning(
+            logger.warning(
                 f"Coordinate transformation failed for Image {key} not found. Input data is None."
             )
             continue
@@ -255,7 +279,7 @@ def project_to_utm(
         # Check if all fields are present in data_dict
         for f in fields:
             if f not in row.keys():
-                logging.warning(
+                logger.warning(
                     f"Coordinate transformation failed for Image {key} not found. Field {f} not found in data_dict at row {key}"
                 )
                 continue
@@ -281,30 +305,32 @@ def project_to_utm(
         return out
 
 
+def dji2csv():
+    pass
+
+
 def dji2xlsx(
-    data_dict,
-    foutname,
-    flag_utm=0,
-    utm_zone="32N",
-    flag_qual=[50, 16, 1],
-    scale_factors=[1, 1, 1],
-):
-    """Create excel file with both camera and log file original metadata, as
-    well as a join file according to user choices
+    data_dict: dict,
+    foutname: str,
+    flag_utm: int = 0,
+    utm_zone: str = "32N",
+    flag_qual: list = [50, 16, 1],
+    scale_factors: list = [1, 1, 1],
+) -> None:
+    """Create an Excel file with both camera and log file original metadata, as
+    well as a join file according to user choices.
 
-    SYNTAX:
-        dji2xlsx(data_dict, foutname, flag_camera = 0, flag_utm = 0, utm_zone = "32N")
+    Args:
+        data_dict (dict): Dictionary of the join jpg-log metadata.
+        foutname (str): Output file to be created.
+        flag_utm (int, optional): Use UTM coordinates instead of log file ones. Defaults to 0.
+        utm_zone (str, optional): UTM zone. Defaults to "32N".
+        flag_qual (list, optional): Flag quality. Defaults to [50, 16, 1].
+        scale_factors (list, optional): Scale factors. Defaults to [1, 1, 1].
 
-    INPUT:
-    - data_dict   --> dictionary of the join jpg-log metadata
-    - foutname    --> output file to be created
-    - flag_camera --> use jpg coordinates instead of log file ones (default = 0)
-    - flag_utm    --> convert output coordinates in utm (default = 0)
-    - utm_zone    --> utm zone (default = "32N")
+    Returns:
+        None
 
-    Lorenzo Rossi
-    v 1.0
-    2023-05-18
     """
 
     if flag_utm == 1:
@@ -312,10 +338,7 @@ def dji2xlsx(
 
         utm_emisph = utm_zone[-1]
         utm_zone = int(utm_zone[:-1])
-        if utm_emisph == "N":
-            utm_base = 32600
-        elif utm_emisph == "S":
-            utm_base = 32700
+        utm_base = 32600 if utm_emisph == "N" else 32700
         epsg_UTM = utm_base + utm_zone
 
     # Create an new Excel file and add a worksheet.
@@ -330,7 +353,7 @@ def dji2xlsx(
             epsg_to=epsg_UTM,
             data_dict=data_dict,
             fields=["lat_exif", "lon_exif", "ellh_exif"],
-            suffix="exif",
+            suffix="_exif",
             in_place=True,
         )
 
@@ -364,7 +387,7 @@ def dji2xlsx(
     r = 0
     for key, row in data_dict.items():
         if row is None:
-            logging.warning(f"Skipping image {key}: image not present in data folder.")
+            logger.warning(f"Skipping image {key}: image not present in data folder.")
             r = r + 1
             continue
 
@@ -451,7 +474,7 @@ def dji2xlsx(
             epsg_to=epsg_UTM,
             data_dict=data_dict,
             fields=["lat_mrk", "lon_mrk", "ellh_mrk"],
-            suffix="mrk",
+            suffix="_mrk",
             in_place=True,
         )
 
@@ -630,7 +653,8 @@ def dji2xlsx(
         c = c + 1
         log_xsheet.write(r, c, row["Flag_mrk"])
 
-    # Output data --------------------------------------------------------------
+    # Output data
+    # --------------------------------------------------------------
     coord_ref_sheets = ["LOG", "EXIF"]
     for coord_ref_sheet in coord_ref_sheets:
         output_xsheet = xbook.add_worksheet("OUTPUT_" + coord_ref_sheet)
@@ -709,7 +733,7 @@ def dji2xlsx(
         r = 0
         for key in data_dict.keys():
             if data_dict[key] is None:
-                logging.warning(
+                logger.warning(
                     f"Skipping image {key}: image not present in data folder."
                 )
                 r = r + 1
@@ -801,7 +825,7 @@ def dji2xlsx(
 
     system = platform.system()
     if system != "Windows":
-        logging.warning(
+        logger.warning(
             f"Unable to resize columns on {system} systems. Please resize columns manually."
         )
     else:
@@ -821,4 +845,4 @@ def dji2xlsx(
             wb.Close()
             # excel.Application.Quit()
         except:
-            logging.warning("Problem while resizing columns!")
+            logger.warning("Problem while resizing columns!")

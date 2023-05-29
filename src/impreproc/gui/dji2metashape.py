@@ -15,13 +15,21 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QSplitter
 
 import impreproc.dji as dji
+from impreproc.utils.logger import setup_logger
+
+# Define logger
+LOG_LEVEL = logging.INFO
+setup_logger(LOG_LEVEL, log_to_file=False, base_log_name="dji2metashape")
+logger = logging.getLogger(__name__)
 
 _app = guidata.qapplication()  # not required if a QApplication has already been created
 
-# read parameters from ini file -----------------------------------------------
+# read parameters from ini file
+# -----------------------------------------------
 iniFile = "dji2metashape.ini"
 
-# set default values of flags -------------------------------------------------
+# set default values of flags
+# -------------------------------------------------
 exportTXT = dt.ValueProp(False)
 isCSVflag = dt.ValueProp(True)
 isXLSflag = dt.ValueProp(True)
@@ -32,7 +40,8 @@ isConvertRAWflag = dt.ValueProp(False)
 utmZones = ["32N", "33N", "34N"]
 
 
-# GUI classes -------------------------------------------------------------------
+# GUI classes
+# ------------------------------------------------------------------
 class gui_dji2metashape(dt.DataSet):
     """
     convert dji log file for metashape usage
@@ -142,7 +151,7 @@ class gui_setting(dt.DataSet):
 
     # Check if a config file exists, otherwise use default values
     if not Path(iniFile).exists():
-        logging.info("Config file not found. Using default values.")
+        logger.info("Config file not found. Using default values.")
         rtroot = None
         rtprofile = None
         rtoptions = None
