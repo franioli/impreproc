@@ -246,7 +246,7 @@ def project_to_utm(
     assert all(isinstance(i, str) for i in fields), "Fields must be strings"
 
     if len(fields) == 3:
-        logger.warning(
+        logger.info(
             "Height transformation not implemented yet. Hellispoidical height will be used."
         )
 
@@ -322,7 +322,7 @@ def dji2csv(
     flag_useImageCoord: bool = False,
     flag_qual: list = [50, 16, 1],
     scale_factors: list = [1, 1, 1],
-) -> None:
+) -> bool:
     """
     Convert DJI metadata dictionary to CSV file.
 
@@ -336,7 +336,7 @@ def dji2csv(
         scale_factors (List, optional): Scale factors. Defaults to [1, 1, 1].
 
     Returns:
-        None
+        bool: True if the file is created successfully, False otherwise.
 
     """
 
@@ -443,6 +443,8 @@ def dji2csv(
 
     logger.info(f"CSV file {foutname} written successfully.")
 
+    return True
+
 
 def dji2xlsx(
     data_dict: dict,
@@ -451,7 +453,7 @@ def dji2xlsx(
     utm_zone: str = "32N",
     flag_qual: list = [50, 16, 1],
     scale_factors: list = [1, 1, 1],
-) -> None:
+) -> bool:
     """Create an Excel file with both camera and log file original metadata, as
     well as a join file according to user choices.
 
@@ -464,7 +466,7 @@ def dji2xlsx(
         scale_factors (list, optional): Scale factors. Defaults to [1, 1, 1].
 
     Returns:
-        None
+        bool: True if the file is created successfully, False otherwise.
 
     """
     # Make deepcopy of data_dict to NOT modify input data
@@ -947,11 +949,7 @@ def dji2xlsx(
     xbook.close()
 
     system = platform.system()
-    if system != "Windows":
-        logger.warning(
-            f"Unable to resize columns on {system} systems. Please resize columns manually."
-        )
-    else:
+    if system == "Windows":
         try:
             win32 = import_module("win32com.client")
             excel = win32.Dispatch("Excel.Application")
@@ -969,5 +967,11 @@ def dji2xlsx(
             # excel.Application.Quit()
         except:
             logger.warning("Problem while resizing columns!")
+    else:
+        logger.warning(
+            f"Unable to resize columns on {system} systems. Please resize columns manually."
+        )
 
     logger.info("Excel file created successfully.")
+
+    return True

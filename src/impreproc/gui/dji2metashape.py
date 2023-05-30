@@ -18,6 +18,16 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QSplitter
 import impreproc.dji as dji
 from impreproc.utils.logger import setup_logger
 
+"""
+    TODO: catch the error type and show a different output message for each type of error (use less catch-all excepts but catch specific errors)
+    TODO: make it possible to set all the parameters from a .ini file that is read at startup
+    TODO: On linux, restricting the file types to be shown in the file dialog to .MRK and .mrk does not work. Now it is possible to select any file type. Fix this.
+    TODO: cleanup the input paramters after the conversion is done and allow for another conversion.
+    TODO: make exit nicely when the program is completed or user closes the window
+    TODO: implement conversion with rawtherapee in GUI
+"""
+
+
 # Define logger
 LOG_LEVEL = logging.INFO
 setup_logger(LOG_LEVEL, log_to_file=False, base_log_name="dji2metashape")
@@ -229,25 +239,24 @@ class MainWindow(QMainWindow):
         add_actions(edit_menu, (setting_action,))
 
     def makeconversion(self):
+        # make conversion
+        data = self.groupbox1.dataset
+        settings = self.groupbox2.dataset
+
+        data_dir = data.imgfold
+        mrk_file = data.logfile
+        if data.fileExtension:
+            image_ext = "dng"
+        else:
+            image_ext = "jpg"
+
+        mrk_dict = dji.mrkread(mrk_file)
+        exif_dict = dji.get_images(data_dir, image_ext)
+        merged_data = dji.merge_mrk_exif_data(mrk_dict, exif_dict)
         try:
-            # make conversion
-            data = self.groupbox1.dataset
-            settings = self.groupbox2.dataset
-
-            data_dir = data.imgfold
-            mrk_file = data.logfile
-            if data.fileExtension:
-                image_ext = "dng"
-            else:
-                image_ext = "jpg"
-
-            mrk_dict = dji.mrkread(mrk_file)
-            exif_dict = dji.get_images(data_dir, image_ext)
-            merged_data = dji.merge_mrk_exif_data(mrk_dict, exif_dict)
-
             if data.isXLS == True:
                 if data.isStdscale == True:
-                    dji.dji2xlsx(
+                    if not dji.dji2xlsx(
                         merged_data,
                         data.xlsfile,
                         flag_utm=int(data.isUTM),
@@ -262,17 +271,19 @@ class MainWindow(QMainWindow):
                             data.float_stdscale,
                             data.auton_stdscale,
                         ],
-                    )
+                    ):
+                        raise Exception("Error when creating the excel fiel.")
                 else:
-                    dji.dji2xlsx(
+                    if not dji.dji2xlsx(
                         merged_data,
                         data.xlsfile,
                         flag_utm=int(data.isUTM),
                         utm_zone=utmZones[data.utmZone],
-                    )
+                    ):
+                        raise Exception("Error when creating the excel fiel.")
 
             if data.isCSV == True:
-                dji.dji2csv(
+                if not dji.dji2csv(
                     data_dict=merged_data,
                     foutname=data.csvfile,
                     flag_utm=data.isUTM,
@@ -288,7 +299,8 @@ class MainWindow(QMainWindow):
                         data.float_stdscale,
                         data.auton_stdscale,
                     ],
-                )
+                ):
+                    raise Exception("Error when creating the csv fiel.")
 
             # done message
             msg = QMessageBox(parent=self)
@@ -297,16 +309,19 @@ class MainWindow(QMainWindow):
             msg.setWindowTitle("dji2metashape")
             msg.setStandardButtons(QMessageBox.Ok)
             retval = msg.exec_()
+
             # clean the fields
-            # self.groupbox1.dataset.fin = ''
-            # self.groupbox1.dataset.fout = ''
+            # self.groupbox1.dataset.fin = ""
+            # self.groupbox1.dataset.fout = ""
             # self.groupbox1.get()
-        except:
+
+        except Exception as e:
             # error message
-            # TODO: catch the error type and show a different message for each type of error.
             msg = QMessageBox(parent=self)
             msg.setIcon(QMessageBox.Critical)
-            msg.setText("Error during file conversion!")  # TODO: add the error type
+            msg.setText(
+                f"Error during file conversion: {e}"
+            )  # TODO: add the error type to the message
             msg.setWindowTitle("Done")
             msg.setStandardButtons(QMessageBox.Ok)
             retval = msg.exec_()
@@ -321,6 +336,7 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
+    # Test the GUI
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
