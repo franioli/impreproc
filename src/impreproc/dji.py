@@ -370,21 +370,39 @@ def dji2csv(
         )
 
     # Apply scaling factors to standard deviations obtained from .mrk file
+    # for k, v in data4csv.items():
+    #     if v is None:
+    #         continue
+    #     if v["Qual_mrk"] == flag_qual[0]:
+    #         v["stdE"] = scale_factors[0] * v["stdE_mrk"]
+    #         v["stdN"] = scale_factors[0] * v["stdN_mrk"]
+    #         v["stdV"] = scale_factors[0] * v["stdV_mrk"]
+    #     elif v["Qual_mrk"] == flag_qual[1]:
+    #         v["stdE"] = scale_factors[1] * v["stdE_mrk"]
+    #         v["stdN"] = scale_factors[1] * v["stdN_mrk"]
+    #         v["stdV"] = scale_factors[1] * v["stdV_mrk"]
+    #     elif v["Qual_mrk"] == flag_qual[2]:
+    #         v["stdE"] = scale_factors[2] * v["stdE_mrk"]
+    #         v["stdN"] = scale_factors[2] * v["stdN_mrk"]
+    #         v["stdV"] = scale_factors[2] * v["stdV_mrk"]
+    #     else:
+    #         logger.warning(f"Skipping image {k}: invalid quality flag.")
+
+    scale_factors_map = {
+        flag_qual[0]: scale_factors[0],
+        flag_qual[1]: scale_factors[1],
+        flag_qual[2]: scale_factors[2],
+    }
+
     for k, v in data4csv.items():
         if v is None:
             continue
-        if v["Qual_mrk"] == flag_qual[0]:
-            v["stdE"] = scale_factors[0] * v["stdE_mrk"]
-            v["stdN"] = scale_factors[0] * v["stdN_mrk"]
-            v["stdV"] = scale_factors[0] * v["stdV_mrk"]
-        elif v["Qual_mrk"] == flag_qual[1]:
-            v["stdE"] = scale_factors[1] * v["stdE_mrk"]
-            v["stdN"] = scale_factors[1] * v["stdN_mrk"]
-            v["stdV"] = scale_factors[1] * v["stdV_mrk"]
-        elif v["Qual_mrk"] == flag_qual[2]:
-            v["stdE"] = scale_factors[2] * v["stdE_mrk"]
-            v["stdN"] = scale_factors[2] * v["stdN_mrk"]
-            v["stdV"] = scale_factors[2] * v["stdV_mrk"]
+        qual_mrk = v["Qual_mrk"]
+        if qual_mrk in scale_factors_map:
+            scale_factor = scale_factors_map[qual_mrk]
+            v["stdE"] = scale_factor * v["stdE_mrk"]
+            v["stdN"] = scale_factor * v["stdN_mrk"]
+            v["stdV"] = scale_factor * v["stdV_mrk"]
         else:
             logger.warning(f"Skipping image {k}: invalid quality flag.")
 
@@ -971,7 +989,7 @@ def dji2xlsx(
             logger.warning("Problem while resizing columns!")
     else:
         logger.warning(
-            f"Unable to resize columns on {system} systems. Please resize columns manually."
+            f"dji2excel: unable to resize columns on {system} systems. Please resize columns manually."
         )
 
     logger.info("Excel file created successfully.")
