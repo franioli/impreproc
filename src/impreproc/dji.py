@@ -385,6 +385,8 @@ def dji2csv(
             v["stdE"] = scale_factors[2] * v["stdE_mrk"]
             v["stdN"] = scale_factors[2] * v["stdN_mrk"]
             v["stdV"] = scale_factors[2] * v["stdV_mrk"]
+        else:
+            logger.warning(f"Skipping image {k}: invalid quality flag.")
 
     # define header for csv file
     header = [
