@@ -15,6 +15,35 @@ from impreproc.camera import Camera
 from impreproc.images import Image, ImageList, latlonalt_from_exif
 
 
+class RenamingDict(TypedDict):
+    """A dictionary for storing metadata about an image being renamed. It maps the old image name to the new one and stores additional metadata about the image.
+
+    Fields:
+    old_name (str): The original name of the image file.
+    new_name (str): The new name of the image file.
+    date (str): The date the image was taken in the format YYYY:MM:DD.
+    time (str): The time the image was taken in the format HH:MM:SS.
+    camera (str): The camera model that captured the image.
+    focal (float): The focal length of the lens that captured the image.
+    GPSlat (float): The latitude of the location where the image was taken.
+    GPSlon (float): The longitude of the location where the image was taken.
+    GPSh (float): The altitude of the location where the image was taken.
+    classification (int or None): The classification of the image, if applicable.
+    """
+
+    id: int
+    old_name: str
+    new_name: str
+    date: str
+    time: str
+    camera: str
+    focal: float
+    GPSlat: float
+    GPSlon: float
+    GPSh: float
+    classification: Union[int, None]
+
+
 class ImageRenamer:
     """
     A class for renaming a list of images.
@@ -158,7 +187,7 @@ class ImageRenamer:
 
     def make_previews(
         self,
-        dest_folder: Union[str, Path],
+        dest_folder: Union[str, Path] = "previews",
         resize_factor: float = -1,
         preview_size=None,
         **kwargs,
@@ -178,13 +207,16 @@ class ImageRenamer:
             RuntimeError: If unable to rename a file.
 
         """
-        dest_folder = Path(dest_folder)
+
+        if dest_folder is "previews":
+            dest_folder = self.dest_folder / "previews"
+        else:
+            dest_folder = Path(dest_folder)
         dest_folder.mkdir(parents=True, exist_ok=True)
         func = partial(
             make_previews,
             dest_folder=dest_folder,
-            preview_size=preview_size,
-            base_name=self.base_name,
+            # base_name=self.base_name,
             **kwargs,
         )
         if self.parallel:
@@ -195,35 +227,6 @@ class ImageRenamer:
             for file in tqdm(self.image_list):
                 if not func(file):
                     raise RuntimeError(f"Unable to rename file {file.name}")
-
-
-class RenamingDict(TypedDict):
-    """A dictionary for storing metadata about an image being renamed. It maps the old image name to the new one and stores additional metadata about the image.
-
-    Fields:
-    old_name (str): The original name of the image file.
-    new_name (str): The new name of the image file.
-    date (str): The date the image was taken in the format YYYY:MM:DD.
-    time (str): The time the image was taken in the format HH:MM:SS.
-    camera (str): The camera model that captured the image.
-    focal (float): The focal length of the lens that captured the image.
-    GPSlat (float): The latitude of the location where the image was taken.
-    GPSlon (float): The longitude of the location where the image was taken.
-    GPSh (float): The altitude of the location where the image was taken.
-    classification (int or None): The classification of the image, if applicable.
-    """
-
-    id: int
-    old_name: str
-    new_name: str
-    date: str
-    time: str
-    camera: str
-    focal: float
-    GPSlat: float
-    GPSlon: float
-    GPSh: float
-    classification: Union[int, None]
 
 
 def name_from_exif(
@@ -329,8 +332,8 @@ def make_previews(
     dest_folder: Union[str, Path] = "previews",
     resize_factor: float = -1,
     resize_to: Union[int, Tuple[int]] = -1,
-    camera: Camera = None,
     undistort: bool = False,
+    camera: Camera = None,
     overlay_name: bool = True,
     output_format: str = "jpg",
     **kwargs,
@@ -348,7 +351,7 @@ def make_previews(
     image = cv2.imread(str(fname))
 
     # Resize image
-    if resize_factor is not None:
+    if resize_factor != -1:
         if "interpolation_flag" in kwargs.keys():
             intep_flag = kwargs["interpolation_flag"]
         else:
