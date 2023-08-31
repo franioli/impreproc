@@ -33,7 +33,13 @@ class ImageList:
         >>> data_dir = Path("/path/to/image/directory")
         >>> image_list = ImageList(data_dir, image_ext=["jpg", "png"], recursive=True)
 
+        TODO:
+            Fix case-sensitive search in Linux environments.
+
         """
+        logging.warning(
+            "ImageList class is currentely case-sensitive in Linux environments. This will be fixed in the next release."
+        )
         self._files = read_image_list(
             data_dir=data_dir,
             image_ext=image_ext,

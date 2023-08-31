@@ -215,9 +215,9 @@ def rebuild_dir_tree(file_list: List[Path], dest_dir: Path) -> List[Path]:
     if system == "Linux" or system == "Darwin":
         paths = [f.resolve() for f in file_list]
     elif system == "Windows":
-        paths = [Path(f) for f in file_list]
-    root = os.path.commonprefix(paths)
-    dest_paths = [Path(dest_dir) / f.relative_to(root).parent for f in paths]
+        paths = [Path(f).resolve() for f in file_list]
+    root = os.path.commonpath(paths)
+    dest_paths = [Path(dest_dir) / f.relative_to(root) for f in paths]
     return dest_paths
 
 
@@ -286,14 +286,14 @@ if __name__ == "__main__":
     print(path)
 
     data_dir = "./data/conversion/"
-    image_ext = "dng"
+    image_ext = "DNG"
     output_dir = "./data/converted"
     pp3_path = "./data/conversion/dji_p1_lightContrast_amaze0px.pp3"
     recursive = True
-    keep_dir_tree = True
+    keep_dir_tree = False
     rawtherapee_opts = ("-j100", "-js3", "-Y")
 
-    files = ImageList(data_dir, image_ext=image_ext, recursive=recursive)   
+    files = ImageList(data_dir, image_ext=image_ext, recursive=recursive)
     print(files.head)
 
     # ret = convert_raw(files[0], output_dir, pp3_path)
