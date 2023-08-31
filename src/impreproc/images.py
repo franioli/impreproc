@@ -15,7 +15,7 @@ class ImageList:
         data_dir: Union[str, Path],
         image_ext: Union[str, List[str]] = None,
         recursive: bool = False,
-        case_sensitive: bool = False,
+        # case_sensitive: bool = False,
     ) -> None:
         """
         Initialize a new ImageList object by specifying the directory containing image files.
@@ -38,7 +38,7 @@ class ImageList:
             data_dir=data_dir,
             image_ext=image_ext,
             recursive=recursive,
-            case_sensitive=case_sensitive,
+            # case_sensitive=case_sensitive,
         )
         self._current_idx = 0
 
@@ -444,7 +444,7 @@ def read_image_list(
     image_ext: Union[str, List[str]] = None,
     # name_pattern: str = None,
     recursive: bool = False,
-    case_sensitive: bool = False,
+    # case_sensitive: bool = False,
 ) -> List[Path]:
     """
     Returns a list of Path objects for all image files in a directory.
@@ -453,7 +453,6 @@ def read_image_list(
         data_dir (Union[str, Path]): A string or Path object specifying the directory path containing image files.
         image_ext (Union[str, List[str]], optional): A string or list of strings specifying the image file extensions to search for. Defaults to None, which searches for all file types.
         recursive (bool, optional): Whether to search for image files recursively in subdirectories. Defaults to False.
-        case_sensitive (bool, optional): Whether to search for image files with case sensitivity. Defaults to False.
 
     Returns:
         [Path]: A list of Path objects for all image files found in the specified directory with the specified file extensions and name pattern.
@@ -464,6 +463,7 @@ def read_image_list(
 
     TODO:
         Implement custom name patterns.
+        Removed case_sensitive option for now as Windows is case-insensitive by default and the current algorithm dupicated the files when reading the file list. Need to find a way to make it work on both Windows and Linux.
 
     """
     data_dir = Path(data_dir)
@@ -477,11 +477,11 @@ def read_image_list(
         if isinstance(image_ext, str):
             image_ext = [image_ext]
         assert all([len(x) == 3 for x in image_ext]), msg
-        if not case_sensitive:
-            # Make glob search case-insensitive
-            image_ext_lower = [x.lower() for x in image_ext]
-            image_ext_upper = [x.upper() for x in image_ext]
-            image_ext = image_ext_lower + image_ext_upper
+        # if not case_sensitive:
+        #     # Make glob search case-insensitive
+        #     image_ext_lower = [x.lower() for x in image_ext]
+        #     image_ext_upper = [x.upper() for x in image_ext]
+        #     image_ext = image_ext_lower + image_ext_upper
 
         ext_patt = [f".{x}" for x in image_ext]
     else:
