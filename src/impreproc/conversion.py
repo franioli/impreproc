@@ -2,7 +2,7 @@ import logging
 import os
 import platform
 import subprocess
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 from typing import List, Union
 
 from tqdm import tqdm
@@ -45,25 +45,31 @@ class RawConverter:
 
     def __init__(
         self,
-        image_list: ImageList,
         output_dir: Union[str, Path] = "./converted",
         pp3_path: Union[str, Path] = None,
+        opts: List[str] = [],
         keep_dir_tree: bool = False,
+        image_list: ImageList = None,
     ):
         """
         Initializes the RawConverter object.
 
         Args:
-            image_list (ImageList): A list of paths to raw image files.
             output_dir (Union[str, Path], optional): The directory where the converted images will be saved. Defaults to "converted".
             pp3_path (Union[str, Path], optional): The path to a pp3 file containing processing instructions for RawTherapee. Defaults to None.
             keep_dir_tree (bool, optional): A flag indicating whether to preserve the directory structure of the input files in the output directory. If True, the converted images will be saved in subdirectories of the output directory corresponding to the relative paths of the input files. Defaults to False.
+            image_list (ImageList): A list of paths to raw image files. Defaults to None.
+            opts: Additional options to pass to RawTherapee, e.g. ("-j100", "-Y"). See the documentation of convert_raw function for all the details.
+
+        NOTE:
+            image_list shuld be set only in convert method. Kept int __init__ for backward compatibility.
         """
-        self.image_list = image_list
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         self.pp3_path = pp3_path
         self.keep_dir_tree = keep_dir_tree
+        self.opts = opts
+        self.image_list = image_list
 
         if self.output_dir.exists():
             logging.warning(
@@ -72,24 +78,36 @@ class RawConverter:
         else:
             self.output_dir.mkdir(parents=True)
 
-    def convert(self, *args: List[str]) -> bool:
+    def convert(
+        self,
+        image_list: ImageList,
+    ) -> bool:
         """
         Converts the raw image files to the specified format using RawTherapee.
 
         Args:
-            *args: Additional options to pass to RawTherapee, e.g. ("-j100", "-Y"). See the documentation of convert_raw function for all the details.
+            image_list (ImageList): A list of paths to raw image files.
 
         Returns:
             bool: True if all files were converted successfully, False otherwise.
         """
+        self.image_list = image_list
+
         if not self.keep_dir_tree:
             for file in tqdm(self.image_list):
-                if not convert_raw(file, self.output_dir, self.pp3_path, *args):
+                if not convert_raw(
+                    file,
+                    output_path=self.output_dir,
+                    profile_path=self.pp3_path,
+                    opts=self.opts,
+                ):
                     raise RuntimeError(f"Unable to convert file {file.name}")
         else:
             dest_paths = rebuild_dir_tree(self.image_list, self.output_dir)
             for file, dest in tqdm(zip(self.image_list, dest_paths)):
-                if not convert_raw(file, dest, self.pp3_path, *args):
+                if not convert_raw(
+                    file, output_path=dest, profile_path=self.pp3_path, opts=self.opts
+                ):
                     raise RuntimeError(f"Unable to convert file {file.name}")
         return True
 
@@ -98,7 +116,8 @@ def convert_raw(
     fname: Union[str, Path],
     output_path: Union[str, Path] = "converted",
     profile_path: Union[str, Path] = None,
-    *args: List[str],
+    rawtherapee_path: Union[str, Path] = None,
+    opts: List[str] = [],
 ) -> bool:
     """
     Converts a raw image file to a specified format using RawTherapee.
@@ -107,7 +126,7 @@ def convert_raw(
         fname (Union[str, Path]): Path to the raw image file to convert.
         output_path (Union[str, Path], optional): Directory to save the converted file(s). Defaults to "converted" in the current working directory.
         profile_path (Union[str, Path], optional): Path to a processing profile (pp3) file to use for the conversion. Defaults to None.
-        *args: Additional string arguments to pass to RawTherapee. A comprehensive list of possible arguments can be found in the RawTherapee documentation at https://rawpedia.rawtherapee.com/Command-Line_Options
+        opts: Additional string arguments to pass to RawTherapee. A comprehensive list of possible arguments can be found in the RawTherapee documentation at https://rawpedia.rawtherapee.com/Command-Line_Options
 
     Returns:
         bool: True if the conversion was successful, False otherwise.
@@ -135,7 +154,10 @@ def convert_raw(
 
     """
     # Get path to RawTherapee executable (works automatically only on Linux!)
-    rawtherapee_path = find_rawtherapee()
+    if rawtherapee_path is None:
+        rawtherapee_path = find_rawtherapee()
+    else:
+        assert Path(rawtherapee_path).exists(), "Invalid RawTherapee Path"
 
     Path(output_path).mkdir(exist_ok=True)
 
@@ -154,11 +176,10 @@ def convert_raw(
         cmd.append("-p")
         cmd.append(profile_path)
 
-    # Add additional options specified as **kwargs.
-    # **kwargs is a tuple of additonal options as
-    # # Rawtherapee options are described at  https://rawpedia.rawtherapee.com/Command-Line_Options
+    # Add additional options specified as a tuple of additonal options as
+    # Rawtherapee options are described at  https://rawpedia.rawtherapee.com/Command-Line_Options
     # e.g., ("-j100", "-js3")
-    for arg in args:
+    for arg in opts:
         cmd.append(arg)
 
     # Add input file as last parameter
@@ -194,7 +215,7 @@ def rebuild_dir_tree(file_list: List[Path], dest_dir: Path) -> List[Path]:
     if system == "Linux" or system == "Darwin":
         paths = [f.resolve() for f in file_list]
     elif system == "Windows":
-        paths = [PureWindowsPath(f) for f in file_list]
+        paths = [Path(f) for f in file_list]
     root = os.path.commonprefix(paths)
     dest_paths = [Path(dest_dir) / f.relative_to(root).parent for f in paths]
     return dest_paths
@@ -211,6 +232,16 @@ def find_rawtherapee() -> str:
     Raises:
         OSError: If the operating system is not supported
     """
+
+    def select_path_gui():
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        path = filedialog.askopenfilename()
+        return path
+
     # Detect the operating system
     system = platform.system()
     if system == "Linux":
@@ -219,36 +250,31 @@ def find_rawtherapee() -> str:
             ["which", "rawtherapee-cli"], capture_output=True, text=True
         ).stdout.replace("\n", "")
         if rawtherapee_path == "":
-            import tkinter as tk
-            from tkinter import filedialog
-
             logging.warning(
                 "Unable to automatically find RawTherapee executable. Please select it manually."
             )
-            root = tk.Tk()
-            root.withdraw()
-            rawtherapee_path = filedialog.askopenfilename()
+            rawtherapee_path = select_path_gui()
 
     elif system == "Windows":
-        import tkinter as tk
-        from tkinter import filedialog
+        try:
+            rawtherapee_path = Path(
+                "C://Program Files//RawTherapee//5.8//rawtherapee-cli.exe"
+            )
+            assert (
+                rawtherapee_path.exists()
+            ), "Rawtherapee not found in default windows path. Select the location of the rawtherapee-cli.exe exectutable manually."
+        except AssertionError:
+            logging.warning(
+                "Unable to automatically find RawTherapee executable. Please select it manually."
+            )
+            rawtherapee_path = select_path_gui()
 
-        logging.warning(
-            "Unable to automatically find RawTherapee executable. Please select it manually."
-        )
-        root = tk.Tk()
-        root.withdraw()
-        rawtherapee_path = filedialog.askopenfilename()
     elif system == "Darwin":
-        import tkinter as tk
-        from tkinter import filedialog
-
         logging.warning(
             "Unable to automatically find RawTherapee executable. Please select it manually."
         )
-        root = tk.Tk()
-        root.withdraw()
-        rawtherapee_path = filedialog.askopenfilename()
+        rawtherapee_path = select_path_gui()
+
     else:
         raise OSError(f"Unsupported operating system: {system}")
 
@@ -256,4 +282,27 @@ def find_rawtherapee() -> str:
 
 
 if __name__ == "__main__":
-    pass
+    path = find_rawtherapee()
+    print(path)
+
+    data_dir = "./data/conversion/"
+    image_ext = "dng"
+    output_dir = "./data/converted"
+    pp3_path = "./data/conversion/dji_p1_lightContrast_amaze0px.pp3"
+    recursive = True
+    keep_dir_tree = True
+    rawtherapee_opts = ("-j100", "-js3", "-Y")
+
+    files = ImageList(data_dir, image_ext=image_ext, recursive=recursive)
+    print(files.head)
+
+    # ret = convert_raw(files[0], output_dir, pp3_path)
+
+    # Batch convert images with RawConverter class
+    converter = RawConverter(
+        output_dir=output_dir,
+        pp3_path=pp3_path,
+        keep_dir_tree=keep_dir_tree,
+        opts=rawtherapee_opts,
+    )
+    converter.convert(files)
