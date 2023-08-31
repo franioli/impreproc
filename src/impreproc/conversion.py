@@ -65,7 +65,6 @@ class RawConverter:
             image_list shuld be set only in convert method. Kept int __init__ for backward compatibility.
         """
         self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True)
         self.pp3_path = pp3_path
         self.keep_dir_tree = keep_dir_tree
         self.opts = opts
