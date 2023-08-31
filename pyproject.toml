@@ -36,7 +36,7 @@ requires-python = ">=3.8"
 
 
 [project.optional-dependencies]
-dev = ["flake8", "black", "bumpver", "isort", "pip-tools", "pytest", "bumpver", "mkdocs", "mkdocs-material", "mkdocstrings[python]"]
+dev = ["black", "bumpver", "isort", "pip-tools", "pytest", "bumpver", "mkdocs", "mkdocs-material", "mkdocstrings[python]"]
 
 [project.urls]
 Homepage = "https://github.com/franioli/image_rename_batch"

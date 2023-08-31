@@ -293,7 +293,7 @@ if __name__ == "__main__":
     keep_dir_tree = True
     rawtherapee_opts = ("-j100", "-js3", "-Y")
 
-    files = ImageList(data_dir, image_ext=image_ext, recursive=recursive)
+    files = ImageList(data_dir, image_ext=image_ext, recursive=recursive)   
     print(files.head)
 
     # ret = convert_raw(files[0], output_dir, pp3_path)

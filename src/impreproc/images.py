@@ -1,9 +1,8 @@
 import logging
-import os
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
-from typing import List, Union, Tuple
+from typing import List, Union
 
 import cv2
 import exifread
