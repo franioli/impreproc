@@ -1,6 +1,5 @@
 import os
 import shutil
-from tqdm import tqdm
 
 from pathlib import Path
 from typing import Union
@@ -11,8 +10,8 @@ RULES = {
     "jpg": ["jpg", "jpeg"],
     "png": ["png"],
     "tif": ["tif", "tiff"],
-    "videos": ["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm"],
     "dji_gnss": ["obs", "nav", "bin", "mrk"],
+    "videos": ["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm"],
     # "documents": ["pdf", "docx", "pptx", "xls", "doc", "ppt"],
     # "audios": ["mp3", "wav", "ogg", "flac", "aac", "wma", "m4a"],
     # "archives": ["zip", "rar", "7z", "tar", "gz", "pkg", "deb", "rpm"],
@@ -44,18 +43,18 @@ def organize_files(
             out_path = Path(dir) / rule
             out_path.mkdir(exist_ok=True, parents=True)
 
-    for file in tqdm(files):
+    for file in files:
         ext = get_extension(file)
         if not ext:
             continue  # Skip directories and files without extensions
 
-        for k, v in rules.items():
-            if ext in v:
+        for rule, extensions in rules.items():
+            if ext in extensions:
                 if inplace:
-                    new_path = Path(dir) / k / file
+                    new_path = Path(dir) / rule / file
                     os.rename(os.path.join(dir, file), new_path)
                 else:
-                    new_path = Path(dir) / k / Path(file).name
+                    new_path = Path(dir) / rule / Path(file).name
                     shutil.copy(os.path.join(dir, file), new_path)
                 break
 
