@@ -1,22 +1,18 @@
 import configparser
 import logging
-import os
 import sys
-from copy import deepcopy
 from pathlib import Path
 
 import guidata
 import guidata.dataset.dataitems as di
 import guidata.dataset.datatypes as dt
-import numpy as np
 from guidata.configtools import get_icon
-from guidata.dataset.qtwidgets import DataSetEditGroupBox, DataSetShowGroupBox
+from guidata.dataset.qtwidgets import DataSetEditGroupBox
 from guidata.qthelpers import add_actions, create_action, get_std_icon
-from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QSplitter
 
-import impreproc.dji as dji
 from impreproc.utils.logger import setup_logger
+from impreproc import dji
 
 """
     TODO: catch the error type and show a different output message for each type of error (use less catch-all excepts but catch specific errors)
@@ -30,8 +26,7 @@ from impreproc.utils.logger import setup_logger
 
 # Define logger
 LOG_LEVEL = logging.INFO
-setup_logger(LOG_LEVEL, log_to_file=False, base_log_name="dji2metashape")
-logger = logging.getLogger(__name__)
+logger = setup_logger(LOG_LEVEL, log_to_file=False, base_log_name="gui")
 
 _app = guidata.qapplication()  # not required if a QApplication has already been created
 
@@ -241,7 +236,6 @@ class MainWindow(QMainWindow):
     def makeconversion(self):
         # make conversion
         data = self.groupbox1.dataset
-        settings = self.groupbox2.dataset
 
         data_dir = data.imgfold
         mrk_file = data.logfile
@@ -254,8 +248,8 @@ class MainWindow(QMainWindow):
         exif_dict = dji.get_images(data_dir, image_ext)
         merged_data = dji.merge_mrk_exif_data(mrk_dict, exif_dict)
         try:
-            if data.isXLS == True:
-                if data.isStdscale == True:
+            if data.isXLS is True:
+                if data.isStdscale is True:
                     if not dji.dji2xlsx(
                         merged_data,
                         data.xlsfile,
@@ -282,7 +276,7 @@ class MainWindow(QMainWindow):
                     ):
                         raise Exception("Error when creating the excel fiel.")
 
-            if data.isCSV == True:
+            if data.isCSV is True:
                 if not dji.dji2csv(
                     data_dict=merged_data,
                     foutname=data.csvfile,
@@ -308,7 +302,7 @@ class MainWindow(QMainWindow):
             msg.setText("File correctly converted!")
             msg.setWindowTitle("dji2metashape")
             msg.setStandardButtons(QMessageBox.Ok)
-            retval = msg.exec_()
+            msg.exec_()
 
             # clean the fields
             # self.groupbox1.dataset.fin = ""
@@ -324,7 +318,7 @@ class MainWindow(QMainWindow):
             )  # TODO: add the error type to the message
             msg.setWindowTitle("Done")
             msg.setStandardButtons(QMessageBox.Ok)
-            retval = msg.exec_()
+            msg.exec_()
 
     def setting_window(self):
         if self.groupbox2.dataset.edit(parent=self, size=(600, 10)):

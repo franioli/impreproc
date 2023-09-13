@@ -105,6 +105,7 @@ class RawConverter:
         else:
             dest_paths = rebuild_dir_tree(self.image_list, self.output_dir)
             for file, dest in tqdm(zip(self.image_list, dest_paths)):
+                dest.mkdir(parents=True, exist_ok=True)
                 if not convert_raw(
                     file, output_path=dest, profile_path=self.pp3_path, opts=self.opts
                 ):
@@ -215,8 +216,8 @@ def rebuild_dir_tree(file_list: List[Path], dest_dir: Path) -> List[Path]:
     if system == "Linux" or system == "Darwin":
         paths = [f.resolve() for f in file_list]
     elif system == "Windows":
-        paths = [Path(f) for f in file_list]
-    root = os.path.commonprefix(paths)
+        paths = [Path(f).resolve() for f in file_list]
+    root = os.path.commonpath(paths)
     dest_paths = [Path(dest_dir) / f.relative_to(root).parent for f in paths]
     return dest_paths
 
@@ -286,7 +287,7 @@ if __name__ == "__main__":
     print(path)
 
     data_dir = "./data/conversion/"
-    image_ext = "dng"
+    image_ext = "DNG"
     output_dir = "./data/converted"
     pp3_path = "./data/conversion/dji_p1_lightContrast_amaze0px.pp3"
     recursive = True
