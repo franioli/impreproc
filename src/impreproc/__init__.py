@@ -1,4 +1,4 @@
 __version__ = "0.5.0"
 
-from impreproc.images import Image, ImageList  # noqa: F401
-from camera import Camera  # noqa: F401
+from .images import Image, ImageList  # noqa: F401
+from .camera import Camera  # noqa: F401
