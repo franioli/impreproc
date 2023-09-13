@@ -7,11 +7,9 @@ Python scripts for batch renaming large datasets of images, e.g., acquired by se
 Clone the repository
 
 ```bash
-git clone https://github.com/franioli/image_rename_batch.git
-cd image_rename_batch
+git clone https://github.com/franioli/impreproc.git
+cd impreproc
 ```
-
-Note: the repository name has the old name of the package. The package name is currentely `impreproc`.
 
 Create an anaconda environment and upgrade pip
 
