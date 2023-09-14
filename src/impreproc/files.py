@@ -10,8 +10,8 @@ RULES = {
     "jpg": ["jpg", "jpeg"],
     "png": ["png"],
     "tif": ["tif", "tiff"],
-    "dji_gnss": ["obs", "nav", "bin", "mrk"],
-    "videos": ["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm"],
+    # "dji_gnss": ["obs", "nav", "bin", "mrk"],
+    # "videos": ["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm"],
     # "documents": ["pdf", "docx", "pptx", "xls", "doc", "ppt"],
     # "audios": ["mp3", "wav", "ogg", "flac", "aac", "wma", "m4a"],
     # "archives": ["zip", "rar", "7z", "tar", "gz", "pkg", "deb", "rpm"],
@@ -40,7 +40,7 @@ def organize_files(
             raise TypeError("Rules must be a dictionary of lists.")
         # Check if at least one of the extensions is in the current directory
         if any([v in current_extensions for v in extensions]):
-            out_path = Path(dir) / rule
+            out_path = Path(dir) / rule.lower()
             out_path.mkdir(exist_ok=True, parents=True)
 
     for file in files:
@@ -81,6 +81,14 @@ if __name__ == "__main__":
     # path = input(r"PATH: ")
     # organize_files(path)
 
-    imdir = "data/conversion/DJI_202303031031_001"
+    # imdir = "data/conversion/DJI_202303031031_001"
 
-    organize_files(imdir, inplace=False)
+    # organize_files(imdir, inplace=False)
+
+    # Batch on multiple directories
+    # root_dir = "/mnt/labmgf/Belvedere/2023/00_img"
+    root_dir = "data/conversion"
+    subfolders = sorted([Path(f.path) for f in os.scandir(root_dir) if f.is_dir()])
+
+    for dir in subfolders:
+        organize_files(dir)
