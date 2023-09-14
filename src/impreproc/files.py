@@ -61,34 +61,57 @@ def organize_files(
 
 class Organizer:
     def __init__(
-        self, rules: dict = RULES, recursive: bool = False, keep_dir_tree: bool = False
+        self,
+        rules: dict = RULES,
+        inplace: bool = True,
+        recursive: bool = False,
     ) -> None:
         assert isinstance(rules, dict), "Rules must be a dictionary."
+        assert isinstance(inplace, bool), "inplace must be a boolean."
         assert isinstance(recursive, bool), "Recursive must be a boolean."
-        assert isinstance(keep_dir_tree, bool), "Keep_dir_tree must be a boolean."
 
         self.rules = rules
+        self.inplace = inplace
         self.recursive = recursive
-        self.keep_dir_tree = keep_dir_tree
 
     def organize(
         self,
+        directory: Union[str, Path],
     ) -> bool:
-        pass
+        if not os.path.isdir(directory):
+            raise ValueError("Directory must be a valid directory.")
+
+        if self.recursive:
+            subfolders = sorted(
+                [Path(f.path) for f in os.scandir(directory) if f.is_dir()]
+            )
+            for dir in subfolders:
+                organize_files(dir, self.rules, self.inplace)
+        else:
+            organize_files(directory, self.rules, self.inplace)
+
+        return True
 
 
 if __name__ == "__main__":
-    # path = input(r"PATH: ")
-    # organize_files(path)
+    # Single directory - move files
+    imdir = "data/conversion/DJI_202303031031_001"
+    recursive = False
+    inplace = True
+    organizer = Organizer(recursive=recursive, inplace=inplace)
+    organizer.organize(imdir)
 
-    # imdir = "data/conversion/DJI_202303031031_001"
+    # Single directory - copy files
+    imdir = "data/conversion/DJI_202303031031_001"
+    recursive = False
+    inplace = False
+    organizer = Organizer(recursive=recursive, inplace=inplace)
+    organizer.organize(imdir)
 
-    # organize_files(imdir, inplace=False)
+    # Batch on multiple directories - move files
+    imdir = "data/conversion"
+    recursive = True
+    organizer = Organizer(recursive=recursive)
+    organizer.organize(imdir)
 
-    # Batch on multiple directories
-    # root_dir = "/mnt/labmgf/Belvedere/2023/00_img"
-    root_dir = "data/conversion"
-    subfolders = sorted([Path(f.path) for f in os.scandir(root_dir) if f.is_dir()])
-
-    for dir in subfolders:
-        organize_files(dir)
+    print("Done.")
