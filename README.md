@@ -29,6 +29,7 @@ pip install -e .
 The following operations are currently supported:
 
 - [x] read DJI .mrk file, extract the GPS coordinates of the images and their accuracy in batch mode, and save them in a .csv file together with the exif data.
+- [x] GUI for the .mrk file reader 
 - [x] rename images in batch mode based on a custom defined pattern (e.g., `%BASE_NAME%_%DATE%_%TIME%.%EXT%`)
 - [x] perform raw conversion in batch mode and recursively in subfolders by using `rawtherapee` software
 - [x] organize files recursively in a directory tree, subdividing them in subfolders based on their extensions
