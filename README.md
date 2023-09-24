@@ -1,7 +1,6 @@
 # impreproc
 
-Python scripts for batch renaming large datasets of images, e.g., acquired by several UAVs photogrammetric flights with DJI drones.
-
+`impreproc` allows for performing several pre-processing operations on large datasets of images, e.g., acquired by several UAVs photogrammetric flights, in batch mode. 
 ## Installation
 
 Clone the repository
@@ -25,6 +24,19 @@ Install `impreproc` package and its dependancies by using pip
 pip install -e .
 ```
 
-## Note
+## Features
 
-The repository is under active development. The name of the package and the name of the scripts may change in the future.
+The following operations are currently supported:
+
+- [x] read DJI .mrk file, extract the GPS coordinates of the images and their accuracy in batch mode, and save them in a .csv file together with the exif data.
+- [x] rename images in batch mode based on a custom defined pattern (e.g., `%BASE_NAME%_%DATE%_%TIME%.%EXT%`)
+- [x] perform raw conversion in batch mode and recursively in subfolders by using `rawtherapee` software
+- [x] organize files recursively in a directory tree, subdividing them in subfolders based on their extensions
+- [x] make CRS conversion with pyproj
+- [ ] make previews images for Potree
+- [ ] implement geodetic height correction
+- [ ] make time-laspe videos from image sequence
+
+## Getting Started
+
+To get started with `impreproc`, you can refer to the documentation at [https://franioli.github.io/impreproc/](https://franioli.github.io/impreproc/) or use the Jupyter notebooks available in the notebook folder.
